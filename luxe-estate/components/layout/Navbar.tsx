@@ -16,11 +16,16 @@ export function Navbar({ activeTab = 'Buy', onTabChange }: NavbarProps) {
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const navItems = ['Buy', 'Rent', 'Sell', 'Saved Homes'];
+  const navItems = ['Buy', 'Rent', 'Featured', 'Saved Homes'];
 
   const handleNavClick = (item: string) => {
     if (onTabChange) {
       onTabChange(item);
+      return;
+    }
+
+    if (item === 'Featured') {
+      router.push('/featured');
       return;
     }
 
@@ -33,7 +38,7 @@ export function Navbar({ activeTab = 'Buy', onTabChange }: NavbarProps) {
     } else if (item === 'Rent') {
       params.set('type', 'for_rent');
       router.push(`/?${params.toString()}`);
-    } else if (item === 'Sell' || item === 'Saved Homes') {
+    } else if (item === 'Saved Homes') {
       params.delete('type');
       router.push(`/?${params.toString()}`);
     }

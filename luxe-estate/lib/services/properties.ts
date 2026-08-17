@@ -189,3 +189,16 @@ export async function getPaginatedProperties({
     hasNextPage: currentPage < totalPages,
   };
 }
+
+/**
+ * Fetches paginated featured properties directly from Supabase on the server.
+ */
+export async function getFeaturedPaginatedProperties(
+  options: Omit<GetPaginatedPropertiesOptions, 'isFeatured'> = {}
+): Promise<PaginatedPropertiesResult> {
+  return getPaginatedProperties({
+    ...options,
+    isFeatured: true,
+  });
+}
+
