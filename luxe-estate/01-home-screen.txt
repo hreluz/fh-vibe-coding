@@ -1,0 +1,8 @@
+/grill-me
+
+let's create the HomeScreen with the mock properties
+Follow the @guidelines.md and @instructions.md to create the HomeScreen
+- Create a set of mock data to show the properties that eventually will be on a database
+- The HomeSceen should look the file code.html
+I am using nvm with the version v24.18.1
+
