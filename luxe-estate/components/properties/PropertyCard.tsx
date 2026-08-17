@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Property } from '@/types/property';
+import { Card, Badge, IconButton } from '@/components/ui';
 
 interface PropertyCardProps {
   property: Property;
@@ -20,9 +21,13 @@ export function PropertyCard({ property, onSelect }: PropertyCardProps) {
   const isRent = property.listingType === 'for_rent';
 
   return (
-    <article
+    <Card
+      as="article"
+      variant="default"
+      interactive
+      rounded="xl"
       onClick={() => onSelect?.(property)}
-      className="bg-white dark:bg-white/5 rounded-xl overflow-hidden shadow-[0_4px_6px_-1px_rgba(0,0,0,0.02),0_2px_4px_-1px_rgba(0,0,0,0.02)] hover:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] dark:hover:shadow-[0_10px_40px_-10px_rgba(6,249,208,0.06)] transition-all duration-300 group cursor-pointer h-full flex flex-col border border-[#19322F]/5 dark:border-white/10"
+      className="h-full"
     >
       {/* Media Container */}
       <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-gray-800">
@@ -34,31 +39,26 @@ export function PropertyCard({ property, onSelect }: PropertyCardProps) {
         />
 
         {/* Favorite Action Button */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsFavorite(!isFavorite);
-          }}
-          aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-          className={`absolute top-3 right-3 p-2 rounded-full backdrop-blur-sm transition-colors ${
-            isFavorite
-              ? 'bg-[#006655] text-white shadow-sm'
-              : 'bg-white/90 dark:bg-black/50 text-[#19322F] dark:text-white hover:bg-[#006655] hover:text-white'
-          }`}
-        >
-          <span className="material-icons text-lg leading-none">
-            {isFavorite ? 'favorite' : 'favorite_border'}
-          </span>
-        </button>
+        <div className="absolute top-3 right-3">
+          <IconButton
+            icon="favorite_border"
+            activeIcon="favorite"
+            active={isFavorite}
+            variant="floating"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsFavorite(!isFavorite);
+            }}
+            aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+          />
+        </div>
 
         {/* Listing Status Badge */}
-        <div
-          className={`absolute bottom-3 left-3 text-white text-[11px] font-bold tracking-wider px-2.5 py-1 rounded shadow-sm uppercase ${
-            isRent ? 'bg-[#006655]' : 'bg-[#19322F] dark:bg-black/80 dark:border dark:border-white/10'
-          }`}
-        >
-          {isRent ? 'FOR RENT' : 'FOR SALE'}
+        <div className="absolute bottom-3 left-3">
+          <Badge variant={isRent ? 'for_rent' : 'for_sale'}>
+            {isRent ? 'FOR RENT' : 'FOR SALE'}
+          </Badge>
         </div>
       </div>
 
@@ -97,6 +97,6 @@ export function PropertyCard({ property, onSelect }: PropertyCardProps) {
           </div>
         </div>
       </div>
-    </article>
+    </Card>
   );
 }

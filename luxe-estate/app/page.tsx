@@ -1,10 +1,8 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Navbar } from '@/components/layout/Navbar';
-import { HeroSearch } from '@/components/home/HeroSearch';
-import { FeaturedSection } from '@/components/home/FeaturedSection';
-import { NewInMarketSection } from '@/components/home/NewInMarketSection';
+import { Navbar } from '@/components/layout';
+import { HeroSearch, FeaturedSection, NewInMarketSection } from '@/components/home';
 import { FEATURED_PROPERTIES, MARKET_PROPERTIES } from '@/data/mock-properties';
 import { CategoryFilterType, ListingFilterType, Property } from '@/types/property';
 

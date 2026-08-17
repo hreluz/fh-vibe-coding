@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { Property, ListingFilterType } from '@/types/property';
-import { PropertyCard } from '@/components/properties/PropertyCard';
+import { SectionHeader, PillTabs, PillTabItem, Button } from '@/components/ui';
+import { PropertyCard } from '@/components/properties';
 
 interface NewInMarketSectionProps {
   properties: Property[];
@@ -13,7 +14,7 @@ interface NewInMarketSectionProps {
   onLoadMore?: () => void;
 }
 
-const FILTER_OPTIONS: { label: string; value: ListingFilterType }[] = [
+const FILTER_OPTIONS: PillTabItem<ListingFilterType>[] = [
   { label: 'All', value: 'all' },
   { label: 'Buy', value: 'for_sale' },
   { label: 'Rent', value: 'for_rent' },
@@ -30,37 +31,18 @@ export function NewInMarketSection({
   return (
     <section>
       {/* Section Header & Segmented Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
-        <div>
-          <h2 className="text-2xl sm:text-3xl font-light text-[#19322F] dark:text-white">
-            New in Market
-          </h2>
-          <p className="text-[#5C706D] dark:text-gray-300 mt-1 text-sm">
-            Fresh opportunities added this week.
-          </p>
-        </div>
-
-        {/* Listing Type Segmented Tabs */}
-        <div className="flex bg-white dark:bg-white/5 p-1 rounded-xl shadow-sm border border-[#19322F]/5 dark:border-white/10 self-start sm:self-auto">
-          {FILTER_OPTIONS.map((opt) => {
-            const isSelected = listingFilter === opt.value;
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => onFilterChange(opt.value)}
-                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
-                  isSelected
-                    ? 'bg-[#19322F] dark:bg-white text-white dark:text-[#19322F] shadow-sm font-semibold'
-                    : 'text-[#5C706D] dark:text-gray-300 hover:text-[#19322F] dark:hover:text-white hover:bg-[#EEF6F6]/60 dark:hover:bg-white/5'
-                }`}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <SectionHeader
+        title="New in Market"
+        subtitle="Fresh opportunities added this week."
+        rightElement={
+          <PillTabs
+            items={FILTER_OPTIONS}
+            activeValue={listingFilter}
+            onChange={onFilterChange}
+            variant="segmented"
+          />
+        }
+      />
 
       {/* Properties Responsive Grid */}
       {properties.length > 0 ? (
@@ -88,13 +70,14 @@ export function NewInMarketSection({
       {/* Load More Button */}
       {hasMore && (
         <div className="mt-12 text-center">
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="lg"
             onClick={onLoadMore}
-            className="px-8 py-3 bg-white dark:bg-white/5 border border-[#19322F]/10 dark:border-white/10 hover:border-[#006655] dark:hover:border-[#06f9d0] hover:text-[#006655] dark:hover:text-[#06f9d0] text-[#19322F] dark:text-white font-medium rounded-xl transition-all hover:shadow-md cursor-pointer"
+            className="hover:shadow-md"
           >
             Load more properties
-          </button>
+          </Button>
         </div>
       )}
     </section>

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { ThemeProvider } from "@/components/providers";
 
 export const metadata: Metadata = {
   title: "Luxe Estate | Discover Premium Properties",

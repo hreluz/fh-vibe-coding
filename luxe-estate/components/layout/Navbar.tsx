@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useTheme } from '@/components/providers/ThemeProvider';
+import { useTheme } from '@/components/providers';
+import { IconButton } from '@/components/ui';
 
 interface NavbarProps {
   activeTab?: string;
@@ -42,7 +43,7 @@ export function Navbar({ activeTab = 'Buy', onTabChange }: NavbarProps) {
                 <button
                   key={item}
                   onClick={() => handleNavClick(item)}
-                  className={`font-medium text-sm px-1 py-1 transition-all ${
+                  className={`font-medium text-sm px-1 py-1 transition-all cursor-pointer ${
                     isActive
                       ? 'text-[#006655] dark:text-[#06f9d0] border-b-2 border-[#006655] dark:border-[#06f9d0]'
                       : 'text-[#19322F]/70 dark:text-white/70 hover:text-[#19322F] dark:hover:text-white hover:border-b-2 hover:border-[#19322F]/20 dark:hover:border-white/20'
@@ -55,35 +56,37 @@ export function Navbar({ activeTab = 'Buy', onTabChange }: NavbarProps) {
           </div>
 
           {/* Action Icons & Profile */}
-          <div className="flex items-center space-x-3 sm:space-x-5">
+          <div className="flex items-center space-x-2 sm:space-x-3">
             {/* Dark / Light Mode Toggle Button */}
-            <button
+            <IconButton
+              icon={theme === 'dark' ? 'light_mode' : 'dark_mode'}
               onClick={toggleTheme}
+              variant="ghost"
+              size="md"
+              shape="rounded"
+              suppressHydrationWarning
               aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-              className="text-[#19322F] dark:text-gray-300 hover:text-[#006655] dark:hover:text-white transition-colors p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer"
               title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-            >
-              <span className="material-icons text-xl sm:text-2xl">
-                {theme === 'dark' ? 'light_mode' : 'dark_mode'}
-              </span>
-            </button>
+            />
 
             {/* Search Icon */}
-            <button
+            <IconButton
+              icon="search"
+              variant="ghost"
+              size="md"
+              shape="rounded"
               aria-label="Search"
-              className="text-[#19322F] dark:text-gray-300 hover:text-[#006655] dark:hover:text-white transition-colors p-1"
-            >
-              <span className="material-icons text-xl sm:text-2xl">search</span>
-            </button>
+            />
 
             {/* Notifications Icon */}
-            <button
+            <IconButton
+              icon="notifications_none"
+              variant="ghost"
+              size="md"
+              shape="rounded"
+              badgeDot
               aria-label="Notifications"
-              className="text-[#19322F] dark:text-gray-300 hover:text-[#006655] dark:hover:text-white transition-colors relative p-1"
-            >
-              <span className="material-icons text-xl sm:text-2xl">notifications_none</span>
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-[#EEF6F6] dark:border-[#0f231f]"></span>
-            </button>
+            />
 
             {/* User Profile Avatar */}
             <div className="flex items-center gap-2 pl-2 border-l border-[#19322F]/10 dark:border-white/10 ml-1 sm:ml-2">
@@ -98,15 +101,16 @@ export function Navbar({ activeTab = 'Buy', onTabChange }: NavbarProps) {
             </div>
 
             {/* Mobile menu button */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden text-[#19322F] dark:text-white hover:text-[#006655] dark:hover:text-[#06f9d0] p-1 transition-colors"
-              aria-label="Toggle menu"
-            >
-              <span className="material-icons text-2xl">
-                {mobileMenuOpen ? 'close' : 'menu'}
-              </span>
-            </button>
+            <div className="md:hidden">
+              <IconButton
+                icon={mobileMenuOpen ? 'close' : 'menu'}
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                variant="ghost"
+                size="md"
+                shape="rounded"
+                aria-label="Toggle menu"
+              />
+            </div>
           </div>
         </div>
       </div>
