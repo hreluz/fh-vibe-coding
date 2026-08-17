@@ -1,97 +1,80 @@
-'use client';
-
-import React, { useState, useMemo } from 'react';
+import React, { Suspense } from 'react';
 import { Navbar } from '@/components/layout';
-import { HeroSearch, FeaturedSection, NewInMarketSection } from '@/components/home';
-import { FEATURED_PROPERTIES, MARKET_PROPERTIES } from '@/data/mock-properties';
-import { CategoryFilterType, ListingFilterType, Property } from '@/types/property';
+import {
+  HeroSearch,
+  FeaturedSection,
+  NewInMarketSection,
+  SupabaseSetupBanner,
+} from '@/components/home';
+import { getFeaturedProperties, getPaginatedProperties } from '@/lib/services/properties';
+import { getSupabaseEnv } from '@/lib/supabase/env';
+import { CategoryFilterType, ListingFilterType } from '@/types/property';
 
-export default function Home() {
-  const [activeNavTab, setActiveNavTab] = useState('Buy');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<CategoryFilterType>('all');
-  const [listingFilter, setListingFilter] = useState<ListingFilterType>('all');
-  const [visibleMarketCount, setVisibleMarketCount] = useState(6);
+export const dynamic = 'force-dynamic';
 
-  // Sync nav tab click with listing filter
-  const handleNavTabChange = (tab: string) => {
-    setActiveNavTab(tab);
-    if (tab === 'Buy') {
-      setListingFilter('for_sale');
-    } else if (tab === 'Rent') {
-      setListingFilter('for_rent');
-    } else if (tab === 'Saved Homes') {
-      // Keep general view or could filter
-    }
-  };
+interface HomePageProps {
+  searchParams: Promise<{
+    page?: string;
+    category?: string;
+    type?: string;
+    q?: string;
+  }>;
+}
 
-  // Filter featured properties based on search and category
-  const filteredFeatured = useMemo(() => {
-    return FEATURED_PROPERTIES.filter((prop) => {
-      const matchesCategory =
-        selectedCategory === 'all' || prop.category === selectedCategory;
-      const matchesSearch =
-        searchTerm.trim() === '' ||
-        prop.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        prop.location.formatted.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesCategory && matchesSearch;
-    });
-  }, [searchTerm, selectedCategory]);
+export default async function Home(props: HomePageProps) {
+  const searchParams = await props.searchParams;
+  const page = parseInt(searchParams.page || '1', 10) || 1;
+  const category = (searchParams.category || 'all') as CategoryFilterType;
+  const listingType = (searchParams.type || 'all') as ListingFilterType;
+  const searchQuery = searchParams.q || '';
 
-  // Filter market properties based on search, category, and listing type
-  const filteredMarket = useMemo(() => {
-    return MARKET_PROPERTIES.filter((prop) => {
-      const matchesCategory =
-        selectedCategory === 'all' || prop.category === selectedCategory;
-      const matchesSearch =
-        searchTerm.trim() === '' ||
-        prop.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        prop.location.formatted.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesListing =
-        listingFilter === 'all' || prop.listingType === listingFilter;
-      return matchesCategory && matchesSearch && matchesListing;
-    });
-  }, [searchTerm, selectedCategory, listingFilter]);
+  const { isConfigured } = getSupabaseEnv();
 
-  const displayedMarket = useMemo(() => {
-    return filteredMarket.slice(0, visibleMarketCount);
-  }, [filteredMarket, visibleMarketCount]);
+  // Active Navbar tab
+  const activeNavTab =
+    listingType === 'for_sale' ? 'Buy' : listingType === 'for_rent' ? 'Rent' : 'Buy';
 
-  const hasMore = filteredMarket.length > visibleMarketCount;
-
-  const handleLoadMore = () => {
-    setVisibleMarketCount((prev) => prev + 4);
-  };
-
-  const handleSelectProperty = (property: Property) => {
-    // Ready for routing to property details page `/property/${property.slug}` in upcoming milestone
-    console.log('Selected property:', property.title);
-  };
+  // Fetch data on the server in parallel if configured
+  const [featuredProperties, paginatedResult] = isConfigured
+    ? await Promise.all([
+        getFeaturedProperties({ category, query: searchQuery }),
+        getPaginatedProperties({
+          page,
+          pageSize: 8,
+          category,
+          listingType,
+          query: searchQuery,
+        }),
+      ])
+    : [[], { properties: [], total: 0, page: 1, pageSize: 8, totalPages: 0, hasPrevPage: false, hasNextPage: false }];
 
   return (
     <div className="min-h-screen bg-[#EEF6F6] dark:bg-[#0f231f] text-[#19322F] dark:text-white flex flex-col font-sans transition-colors duration-200">
-      <Navbar activeTab={activeNavTab} onTabChange={handleNavTabChange} />
+      <Navbar activeTab={activeNavTab} />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pb-20">
-        <HeroSearch
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          selectedCategory={selectedCategory}
-          onSelectCategory={setSelectedCategory}
-        />
+        {!isConfigured && <SupabaseSetupBanner />}
 
-        <FeaturedSection
-          properties={filteredFeatured}
-          onSelectProperty={handleSelectProperty}
-        />
+        <Suspense fallback={<div className="h-40 animate-pulse bg-black/5 dark:bg-white/5 rounded-2xl my-8" />}>
+          <HeroSearch
+            searchTerm={searchQuery}
+            selectedCategory={category}
+          />
+        </Suspense>
 
+        {/* Featured Collections Section */}
+        {featuredProperties.length > 0 && (
+          <FeaturedSection properties={featuredProperties} />
+        )}
+
+        {/* New in Market Section with Server-Side Pagination */}
         <NewInMarketSection
-          properties={displayedMarket}
-          listingFilter={listingFilter}
-          onFilterChange={setListingFilter}
-          onSelectProperty={handleSelectProperty}
-          hasMore={hasMore}
-          onLoadMore={handleLoadMore}
+          properties={paginatedResult.properties}
+          listingFilter={listingType}
+          currentPage={paginatedResult.page}
+          totalPages={paginatedResult.totalPages}
+          totalItems={paginatedResult.total}
+          pageSize={paginatedResult.pageSize}
         />
       </main>
     </div>

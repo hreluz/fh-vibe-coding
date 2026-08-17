@@ -1,0 +1,7 @@
+[/grill-me](slashCommand;grill-me) 
+let's create a database in supabase, please use the supabase mcp that is connected
+
+let's create the properties in the database and I also need to have a pagination on the properties in the homeScreen
+
+The pagination should be on the server side using the nextjs features
+

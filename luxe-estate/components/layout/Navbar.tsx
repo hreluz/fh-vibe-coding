@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTheme } from '@/components/providers';
 import { IconButton } from '@/components/ui';
 
@@ -13,11 +14,28 @@ interface NavbarProps {
 export function Navbar({ activeTab = 'Buy', onTabChange }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const navItems = ['Buy', 'Rent', 'Sell', 'Saved Homes'];
 
   const handleNavClick = (item: string) => {
     if (onTabChange) {
       onTabChange(item);
+      return;
+    }
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('page');
+
+    if (item === 'Buy') {
+      params.set('type', 'for_sale');
+      router.push(`/?${params.toString()}`);
+    } else if (item === 'Rent') {
+      params.set('type', 'for_rent');
+      router.push(`/?${params.toString()}`);
+    } else if (item === 'Sell' || item === 'Saved Homes') {
+      params.delete('type');
+      router.push(`/?${params.toString()}`);
     }
   };
 

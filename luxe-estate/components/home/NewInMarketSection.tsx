@@ -1,17 +1,22 @@
 'use client';
 
-import React from 'react';
+import React, { useTransition } from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Property, ListingFilterType } from '@/types/property';
-import { SectionHeader, PillTabs, PillTabItem, Button } from '@/components/ui';
+import { SectionHeader, PillTabs, PillTabItem, Pagination } from '@/components/ui';
 import { PropertyCard } from '@/components/properties';
 
 interface NewInMarketSectionProps {
   properties: Property[];
-  listingFilter: ListingFilterType;
-  onFilterChange: (filter: ListingFilterType) => void;
+  listingFilter?: ListingFilterType;
+  onFilterChange?: (filter: ListingFilterType) => void;
   onSelectProperty?: (property: Property) => void;
-  hasMore?: boolean;
-  onLoadMore?: () => void;
+  currentPage?: number;
+  totalPages?: number;
+  totalItems?: number;
+  pageSize?: number;
+  createPageUrl?: (page: number) => string;
+  onPageChange?: (page: number) => void;
 }
 
 const FILTER_OPTIONS: PillTabItem<ListingFilterType>[] = [
@@ -22,12 +27,57 @@ const FILTER_OPTIONS: PillTabItem<ListingFilterType>[] = [
 
 export function NewInMarketSection({
   properties,
-  listingFilter,
+  listingFilter: controlledFilter,
   onFilterChange,
   onSelectProperty,
-  hasMore = false,
-  onLoadMore,
+  currentPage = 1,
+  totalPages = 1,
+  totalItems,
+  pageSize = 8,
+  createPageUrl: customCreatePageUrl,
+  onPageChange,
 }: NewInMarketSectionProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+
+  const currentParamFilter = (searchParams.get('type') || 'all') as ListingFilterType;
+  const activeListingFilter = controlledFilter ?? currentParamFilter;
+
+  const handleFilterChange = (filter: ListingFilterType) => {
+    if (onFilterChange) {
+      onFilterChange(filter);
+    }
+
+    const params = new URLSearchParams(searchParams.toString());
+    if (filter !== 'all') {
+      params.set('type', filter);
+    } else {
+      params.delete('type');
+    }
+    // Reset to page 1 on filter changes
+    params.delete('page');
+
+    startTransition(() => {
+      const queryString = params.toString();
+      router.push(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
+    });
+  };
+
+  const defaultCreatePageUrl = (page: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (page > 1) {
+      params.set('page', page.toString());
+    } else {
+      params.delete('page');
+    }
+    const qs = params.toString();
+    return qs ? `${pathname}?${qs}` : pathname;
+  };
+
+  const pageUrlGenerator = customCreatePageUrl || defaultCreatePageUrl;
+
   return (
     <section>
       {/* Section Header & Segmented Tabs */}
@@ -37,8 +87,8 @@ export function NewInMarketSection({
         rightElement={
           <PillTabs
             items={FILTER_OPTIONS}
-            activeValue={listingFilter}
-            onChange={onFilterChange}
+            activeValue={activeListingFilter}
+            onChange={handleFilterChange}
             variant="segmented"
           />
         }
@@ -46,7 +96,11 @@ export function NewInMarketSection({
 
       {/* Properties Responsive Grid */}
       {properties.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div
+          className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 transition-opacity duration-200 ${
+            isPending ? 'opacity-60' : 'opacity-100'
+          }`}
+        >
           {properties.map((property) => (
             <PropertyCard
               key={property.id}
@@ -67,17 +121,17 @@ export function NewInMarketSection({
         </div>
       )}
 
-      {/* Load More Button */}
-      {hasMore && (
-        <div className="mt-12 text-center">
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={onLoadMore}
-            className="hover:shadow-md"
-          >
-            Load more properties
-          </Button>
+      {/* Server-Side Pagination Bar */}
+      {totalPages > 1 && (
+        <div className="mt-8">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            createPageUrl={pageUrlGenerator}
+            onPageChange={onPageChange}
+          />
         </div>
       )}
     </section>

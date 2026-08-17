@@ -1,14 +1,15 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useTransition } from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { CategoryFilterType } from '@/types/property';
 import { SearchInput, PillTabs, PillTabItem, Button } from '@/components/ui';
 
 interface HeroSearchProps {
-  searchTerm: string;
-  onSearchChange: (value: string) => void;
-  selectedCategory: CategoryFilterType;
-  onSelectCategory: (category: CategoryFilterType) => void;
+  searchTerm?: string;
+  onSearchChange?: (value: string) => void;
+  selectedCategory?: CategoryFilterType;
+  onSelectCategory?: (category: CategoryFilterType) => void;
   onOpenFiltersModal?: () => void;
 }
 
@@ -21,12 +22,77 @@ const CATEGORIES: PillTabItem<CategoryFilterType>[] = [
 ];
 
 export function HeroSearch({
-  searchTerm,
+  searchTerm: controlledSearch,
   onSearchChange,
-  selectedCategory,
+  selectedCategory: controlledCategory,
   onSelectCategory,
   onOpenFiltersModal,
 }: HeroSearchProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+
+  const currentParamSearch = searchParams.get('q') || '';
+  const currentParamCategory = (searchParams.get('category') || 'all') as CategoryFilterType;
+
+  const [localSearch, setLocalSearch] = useState(controlledSearch ?? currentParamSearch);
+  const activeCategory = controlledCategory ?? currentParamCategory;
+
+  useEffect(() => {
+    if (controlledSearch !== undefined) {
+      setLocalSearch(controlledSearch);
+    } else {
+      setLocalSearch(currentParamSearch);
+    }
+  }, [controlledSearch, currentParamSearch]);
+
+  const updateUrlParams = (newParams: { q?: string; category?: string }) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (newParams.q !== undefined) {
+      if (newParams.q.trim()) {
+        params.set('q', newParams.q.trim());
+      } else {
+        params.delete('q');
+      }
+    }
+
+    if (newParams.category !== undefined) {
+      if (newParams.category !== 'all') {
+        params.set('category', newParams.category);
+      } else {
+        params.delete('category');
+      }
+    }
+
+    // Reset to page 1 on filter changes
+    params.delete('page');
+
+    startTransition(() => {
+      const queryString = params.toString();
+      router.push(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
+    });
+  };
+
+  const handleSearchChange = (value: string) => {
+    setLocalSearch(value);
+    if (onSearchChange) {
+      onSearchChange(value);
+    }
+  };
+
+  const handleSearchSubmit = () => {
+    updateUrlParams({ q: localSearch });
+  };
+
+  const handleCategorySelect = (cat: CategoryFilterType) => {
+    if (onSelectCategory) {
+      onSelectCategory(cat);
+    }
+    updateUrlParams({ category: cat });
+  };
+
   return (
     <section className="py-12 md:py-16">
       <div className="max-w-3xl mx-auto text-center space-y-8">
@@ -41,19 +107,22 @@ export function HeroSearch({
         </h1>
 
         {/* Search Bar */}
-        <SearchInput
-          value={searchTerm}
-          onChange={onSearchChange}
-          placeholder="Search by city, neighborhood, or address..."
-          buttonLabel="Search"
-        />
+        <div className="relative">
+          <SearchInput
+            value={localSearch}
+            onChange={handleSearchChange}
+            onSubmit={handleSearchSubmit}
+            placeholder="Search by city, neighborhood, or address..."
+            buttonLabel={isPending ? 'Searching...' : 'Search'}
+          />
+        </div>
 
         {/* Category Pills & Filters */}
         <div className="flex items-center justify-center gap-2.5 sm:gap-3 overflow-x-auto hide-scroll py-2 px-4 -mx-4">
           <PillTabs
             items={CATEGORIES}
-            activeValue={selectedCategory}
-            onChange={onSelectCategory}
+            activeValue={activeCategory}
+            onChange={handleCategorySelect}
             variant="pills"
           />
 
