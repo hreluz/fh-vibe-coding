@@ -1,0 +1,3 @@
+I need you to create a file called 'best-practices.md' in the folder of antigravity
+
+This file should have the best practices for the Next.js app that do real state, I need bullet points, I need good practices, I need recommendations and ideas
