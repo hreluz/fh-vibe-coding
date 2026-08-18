@@ -38,25 +38,29 @@ async function seed() {
     bedrooms: prop.specs.bedrooms,
     bathrooms: prop.specs.bathrooms,
     area_sq_meters: prop.specs.areaSqMeters,
-    image_url: prop.imageUrl,
-    image_alt: prop.imageAlt,
+    garage: prop.specs.garage || 1,
+    images: prop.images,
     badge: prop.badge || null,
     is_featured: Boolean(prop.isFeatured),
     description: prop.description || null,
+    latitude: prop.coordinates?.lat || null,
+    longitude: prop.coordinates?.lng || null,
+    amenities: prop.amenities || [],
     created_at: prop.createdAt || new Date().toISOString(),
   }));
 
-  const { data, error } = await supabase
+  const { data: propertiesData, error: propertiesError } = await supabase
     .from('properties')
     .upsert(payload, { onConflict: 'slug' })
     .select();
 
-  if (error) {
-    console.error('❌ Error seeding properties:', error.message);
+  if (propertiesError) {
+    console.error('❌ Error seeding properties:', propertiesError.message);
     process.exit(1);
   }
 
-  console.log(`✅ Successfully seeded ${data?.length ?? payload.length} properties into Supabase!`);
+  console.log(`✅ Upserted ${propertiesData?.length ?? payload.length} properties with images array.`);
+  console.log('🎉 Seeding complete!');
 }
 
 seed().catch((err) => {

@@ -1,0 +1,14 @@
+/grill-me
+
+let's work on the property detail screen
+
+
+I need to follow the best practices of @best-practices.md
+
+Other tasks to do are
+- Create a slug in the properties to do friendly urls
+- Additionaly each property can have from 1 to n number of images, so it should be a collection of images by property
+- Do the navigation to those screens and go back to the home with the icon or company's logo in the navbar
+- For the map part, we use Leaflet
+- Follow the design on property_details_screen/code.html                         
+

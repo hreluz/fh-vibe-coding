@@ -9,6 +9,7 @@ import {
   PropertyCategory,
 } from '@/types/property';
 import { getSupabaseEnv } from '@/lib/supabase/env';
+import { ALL_PROPERTIES, DEFAULT_AGENT } from '@/data/mock-properties';
 
 export interface GetPaginatedPropertiesOptions {
   page?: number;
@@ -33,6 +34,44 @@ export interface PaginatedPropertiesResult {
  * Maps a database row from Supabase to the frontend `Property` interface.
  */
 export function mapPropertyRow(row: PropertyRow): Property {
+  const mockFallback = ALL_PROPERTIES.find((p) => p.id === row.id || p.slug === row.slug);
+
+  // Parse images array directly from DB or mock data fallback
+  let images: string[] = [];
+  if (row.images && Array.isArray(row.images) && row.images.length > 0) {
+    images = row.images;
+  } else if (mockFallback?.images && mockFallback.images.length > 0) {
+    images = mockFallback.images;
+  } else {
+    images = [
+      'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
+    ];
+  }
+
+  const hasValidDbCoords =
+    row.latitude !== null &&
+    row.latitude !== undefined &&
+    !isNaN(Number(row.latitude)) &&
+    row.longitude !== null &&
+    row.longitude !== undefined &&
+    !isNaN(Number(row.longitude));
+
+  const coordinates = hasValidDbCoords
+    ? { lat: Number(row.latitude), lng: Number(row.longitude) }
+    : mockFallback?.coordinates || { lat: 34.0736, lng: -118.4004 };
+
+  const amenities =
+    row.amenities && Array.isArray(row.amenities) && row.amenities.length > 0
+      ? row.amenities
+      : mockFallback?.amenities || [
+          'Smart Home System',
+          'Swimming Pool',
+          'Central Heating & Cooling',
+          'Electric Vehicle Charging',
+          'Private Gym',
+          'Wine Cellar',
+        ];
+
   return {
     id: row.id,
     title: row.title,
@@ -51,14 +90,74 @@ export function mapPropertyRow(row: PropertyRow): Property {
       bedrooms: row.bedrooms,
       bathrooms: Number(row.bathrooms),
       areaSqMeters: Number(row.area_sq_meters),
+      garage:
+        row.garage !== null && row.garage !== undefined
+          ? Number(row.garage)
+          : mockFallback?.specs.garage ?? 1,
     },
-    imageUrl: row.image_url,
-    imageAlt: row.image_alt,
+    images,
     badge: (row.badge as PropertyBadge) || null,
     isFeatured: row.is_featured,
-    description: row.description || undefined,
+    description: row.description || mockFallback?.description || undefined,
+    amenities,
+    coordinates,
+    agent: DEFAULT_AGENT,
     createdAt: row.created_at,
   };
+}
+
+
+/**
+ * Fetches a single property by its slug from Supabase or mock fallback.
+ */
+export async function getPropertyBySlug(slug: string): Promise<Property | null> {
+  const decodedSlug = decodeURIComponent(slug);
+  const { isConfigured } = getSupabaseEnv();
+
+  if (!isConfigured) {
+    return ALL_PROPERTIES.find((p) => p.slug === decodedSlug) || null;
+  }
+
+  try {
+    const supabase = createServerClient();
+
+    // Fetch property row
+    const { data: propData, error: propError } = await supabase
+      .from('properties')
+      .select('*')
+      .eq('slug', decodedSlug)
+      .maybeSingle();
+
+    if (propError || !propData) {
+      return ALL_PROPERTIES.find((p) => p.slug === decodedSlug) || null;
+    }
+
+    return mapPropertyRow(propData);
+  } catch (err) {
+    console.error('Error fetching property by slug:', err);
+    return ALL_PROPERTIES.find((p) => p.slug === decodedSlug) || null;
+  }
+}
+
+/**
+ * Fetches all property slugs for static routes or sitemaps.
+ */
+export async function getAllPropertySlugs(): Promise<string[]> {
+  const { isConfigured } = getSupabaseEnv();
+  if (!isConfigured) {
+    return ALL_PROPERTIES.map((p) => p.slug);
+  }
+
+  try {
+    const supabase = createServerClient();
+    const { data, error } = await supabase.from('properties').select('slug');
+    if (error || !data) {
+      return ALL_PROPERTIES.map((p) => p.slug);
+    }
+    return data.map((item) => item.slug);
+  } catch {
+    return ALL_PROPERTIES.map((p) => p.slug);
+  }
 }
 
 /**
@@ -70,7 +169,19 @@ export async function getFeaturedProperties(options?: {
 }): Promise<Property[]> {
   const { isConfigured } = getSupabaseEnv();
   if (!isConfigured) {
-    return [];
+    let list = ALL_PROPERTIES.filter((p) => p.isFeatured);
+    if (options?.category && options.category !== 'all') {
+      list = list.filter((p) => p.category === options.category);
+    }
+    if (options?.query && options.query.trim() !== '') {
+      const q = options.query.toLowerCase().trim();
+      list = list.filter(
+        (p) =>
+          p.title.toLowerCase().includes(q) ||
+          p.location.formatted.toLowerCase().includes(q)
+      );
+    }
+    return list;
   }
 
   const supabase = createServerClient();
@@ -96,7 +207,7 @@ export async function getFeaturedProperties(options?: {
     return [];
   }
 
-  return (data || []).map(mapPropertyRow);
+  return (data || []).map((row) => mapPropertyRow(row));
 }
 
 /**
@@ -114,14 +225,33 @@ export async function getPaginatedProperties({
   const { isConfigured } = getSupabaseEnv();
 
   if (!isConfigured) {
+    let list = ALL_PROPERTIES.filter((p) => (isFeatured ? p.isFeatured : !p.isFeatured));
+    if (category && category !== 'all') {
+      list = list.filter((p) => p.category === category);
+    }
+    if (listingType && listingType !== 'all') {
+      list = list.filter((p) => p.listingType === listingType);
+    }
+    if (query && query.trim() !== '') {
+      const q = query.toLowerCase().trim();
+      list = list.filter(
+        (p) =>
+          p.title.toLowerCase().includes(q) ||
+          p.location.formatted.toLowerCase().includes(q)
+      );
+    }
+    const total = list.length;
+    const totalPages = Math.ceil(total / pageSize);
+    const from = (currentPage - 1) * pageSize;
+    const properties = list.slice(from, from + pageSize);
     return {
-      properties: [],
-      total: 0,
+      properties,
+      total,
       page: currentPage,
       pageSize,
-      totalPages: 0,
-      hasPrevPage: false,
-      hasNextPage: false,
+      totalPages,
+      hasPrevPage: currentPage > 1,
+      hasNextPage: currentPage < totalPages,
     };
   }
 
@@ -177,7 +307,7 @@ export async function getPaginatedProperties({
 
   const total = count || 0;
   const totalPages = Math.ceil(total / pageSize);
-  const properties = (data || []).map(mapPropertyRow);
+  const properties = (data || []).map((row) => mapPropertyRow(row));
 
   return {
     properties,
@@ -201,4 +331,3 @@ export async function getFeaturedPaginatedProperties(
     isFeatured: true,
   });
 }
-

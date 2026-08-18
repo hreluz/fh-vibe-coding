@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Property } from '@/types/property';
 import { SectionHeader, IconButton } from '@/components/ui';
@@ -31,7 +31,7 @@ export function FeaturedSection({
     }
   };
 
-  const updateScrollState = () => {
+  const updateScrollState = useCallback(() => {
     if (!scrollRef.current) return;
     const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
     setCanScrollLeft(scrollLeft > 10);
@@ -40,7 +40,7 @@ export function FeaturedSection({
     const itemWidth = scrollRef.current.firstElementChild?.clientWidth || clientWidth;
     const index = Math.round(scrollLeft / (itemWidth + 24));
     setActiveIndex(Math.min(Math.max(0, index), properties.length - 1));
-  };
+  }, [properties.length]);
 
   useEffect(() => {
     updateScrollState();
@@ -53,7 +53,7 @@ export function FeaturedSection({
         current.removeEventListener('scroll', updateScrollState);
       }
     };
-  }, [properties.length]);
+  }, [updateScrollState]);
 
   const scroll = (direction: 'left' | 'right') => {
     if (!scrollRef.current) return;

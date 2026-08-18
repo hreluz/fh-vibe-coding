@@ -6,3 +6,4 @@ export * from './SearchInput';
 export * from './PillTabs';
 export * from './SectionHeader';
 export * from './Pagination';
+export * from './ModalPortal';

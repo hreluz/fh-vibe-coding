@@ -1,0 +1,3 @@
+Actually in the db we have images or image I need to use the images, it means use an array to avoid duplicity
+
+- I need each property to have at least 3 additionally images, the images could be placeholder or any other image from internet related

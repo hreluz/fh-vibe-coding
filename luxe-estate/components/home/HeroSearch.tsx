@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useTransition } from 'react';
+import React, { useState, useTransition } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { CategoryFilterType } from '@/types/property';
 import { SearchInput, PillTabs, PillTabItem, Button } from '@/components/ui';
@@ -36,16 +36,15 @@ export function HeroSearch({
   const currentParamSearch = searchParams.get('q') || '';
   const currentParamCategory = (searchParams.get('category') || 'all') as CategoryFilterType;
 
-  const [localSearch, setLocalSearch] = useState(controlledSearch ?? currentParamSearch);
+  const effectiveSearch = controlledSearch ?? currentParamSearch;
   const activeCategory = controlledCategory ?? currentParamCategory;
+  const [localSearch, setLocalSearch] = useState(effectiveSearch);
+  const [prevEffectiveSearch, setPrevEffectiveSearch] = useState(effectiveSearch);
 
-  useEffect(() => {
-    if (controlledSearch !== undefined) {
-      setLocalSearch(controlledSearch);
-    } else {
-      setLocalSearch(currentParamSearch);
-    }
-  }, [controlledSearch, currentParamSearch]);
+  if (prevEffectiveSearch !== effectiveSearch) {
+    setPrevEffectiveSearch(effectiveSearch);
+    setLocalSearch(effectiveSearch);
+  }
 
   const updateUrlParams = (newParams: { q?: string; category?: string }) => {
     const params = new URLSearchParams(searchParams.toString());

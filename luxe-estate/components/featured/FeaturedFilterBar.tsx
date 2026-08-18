@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useTransition } from 'react';
+import React, { useState, useTransition } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { CategoryFilterType, ListingFilterType } from '@/types/property';
 import { PillTabs, PillTabItem, SearchInput } from '@/components/ui';
@@ -34,10 +34,12 @@ export function FeaturedFilterBar({ totalItems }: FeaturedFilterBarProps) {
   const currentListingType = (searchParams.get('type') || 'all') as ListingFilterType;
 
   const [searchTerm, setSearchTerm] = useState(currentSearch);
+  const [prevSearch, setPrevSearch] = useState(currentSearch);
 
-  useEffect(() => {
+  if (prevSearch !== currentSearch) {
+    setPrevSearch(currentSearch);
     setSearchTerm(currentSearch);
-  }, [currentSearch]);
+  }
 
   const updateFilters = (newParams: {
     q?: string;

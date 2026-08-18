@@ -14,6 +14,21 @@ export interface PropertySpecs {
   bedrooms: number;
   bathrooms: number;
   areaSqMeters: number;
+  garage?: number;
+}
+
+export interface PropertyAgent {
+  name: string;
+  title: string;
+  avatarUrl: string;
+  phone?: string;
+  email?: string;
+  rating?: number;
+}
+
+export interface PropertyCoordinates {
+  lat: number;
+  lng: number;
 }
 
 export interface Property {
@@ -25,11 +40,13 @@ export interface Property {
   category: PropertyCategory;
   location: PropertyLocation;
   specs: PropertySpecs;
-  imageUrl: string;
-  imageAlt: string;
+  images: string[];
   badge?: PropertyBadge;
   isFeatured?: boolean;
   description?: string;
+  amenities?: string[];
+  coordinates?: PropertyCoordinates;
+  agent?: PropertyAgent;
   createdAt: string;
 }
 

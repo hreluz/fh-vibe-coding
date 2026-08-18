@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTheme } from '@/components/providers';
@@ -11,7 +11,7 @@ interface NavbarProps {
   onTabChange?: (tab: string) => void;
 }
 
-export function Navbar({ activeTab = 'Buy', onTabChange }: NavbarProps) {
+function NavbarInner({ activeTab = 'Buy', onTabChange }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
@@ -29,7 +29,7 @@ export function Navbar({ activeTab = 'Buy', onTabChange }: NavbarProps) {
       return;
     }
 
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString() || '');
     params.delete('page');
 
     if (item === 'Buy') {
@@ -163,5 +163,28 @@ export function Navbar({ activeTab = 'Buy', onTabChange }: NavbarProps) {
         </div>
       )}
     </nav>
+  );
+}
+
+export function Navbar(props: NavbarProps) {
+  return (
+    <Suspense
+      fallback={
+        <nav className="sticky top-0 z-50 bg-[#EEF6F6]/95 dark:bg-[#0f231f]/95 backdrop-blur-md border-b border-[#19322F]/10 dark:border-white/5 h-20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-[#19322F] dark:bg-white/10 flex items-center justify-center">
+                <span className="material-icons text-white text-lg">apartment</span>
+              </div>
+              <span className="text-xl font-semibold tracking-tight text-[#19322F] dark:text-white">
+                LuxeEstate
+              </span>
+            </Link>
+          </div>
+        </nav>
+      }
+    >
+      <NavbarInner {...props} />
+    </Suspense>
   );
 }
