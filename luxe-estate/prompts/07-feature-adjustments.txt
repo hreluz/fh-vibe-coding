@@ -1,0 +1,7 @@
+/grill-me
+
+Let's work with "chips" or buttons for these filters that should work. All of this on @page.tsx
+
+- I need you to show only 2 featured properties every time even if there are more
+
+- Additionally when a filter or search is applied, featured properties should not be shown 

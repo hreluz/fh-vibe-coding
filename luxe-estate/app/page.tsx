@@ -44,6 +44,19 @@ export default async function Home(props: HomePageProps) {
 
   const { isConfigured } = getSupabaseEnv();
 
+  // Check if any filter or search query is currently active
+  const hasActiveFilters = Boolean(
+    searchQuery ||
+    locationQuery ||
+    (category && category !== 'all') ||
+    (listingType && listingType !== 'all') ||
+    (minPrice !== undefined && minPrice > 0) ||
+    (maxPrice !== undefined && maxPrice > 0) ||
+    (bedrooms !== undefined && bedrooms > 0) ||
+    (bathrooms !== undefined && bathrooms > 0) ||
+    (amenities && amenities.length > 0)
+  );
+
   // Active Navbar tab
   const activeNavTab =
     listingType === 'for_sale' ? 'Buy' : listingType === 'for_rent' ? 'Rent' : 'Buy';
@@ -60,9 +73,13 @@ export default async function Home(props: HomePageProps) {
     amenities,
   };
 
-  // Fetch data on the server in parallel
+  // Fetch data on the server in parallel:
+  // 1. Featured properties: Only fetched if no filters/search are applied, capped to max 2 items
+  // 2. Paginated properties: Standard server-side pagination with active filters
   const [featuredProperties, paginatedResult] = await Promise.all([
-    getFeaturedProperties(filterOptions),
+    hasActiveFilters
+      ? Promise.resolve([])
+      : getFeaturedProperties().then((props) => props.slice(0, 2)),
     getPaginatedProperties({
       page,
       pageSize: 8,
@@ -84,8 +101,8 @@ export default async function Home(props: HomePageProps) {
           />
         </Suspense>
 
-        {/* Featured Collections Section */}
-        {featuredProperties.length > 0 && (
+        {/* Featured Collections Section - Only show max 2 properties and only when no filters/search applied */}
+        {!hasActiveFilters && featuredProperties.length > 0 && (
           <FeaturedSection properties={featuredProperties} />
         )}
 

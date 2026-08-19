@@ -22,6 +22,18 @@ const CATEGORIES: PillTabItem<CategoryFilterType>[] = [
   { label: 'Penthouse', value: 'penthouse' },
 ];
 
+function formatPriceShort(price: number): string {
+  if (price >= 1000000) {
+    const millions = price / 1000000;
+    return `$${millions % 1 === 0 ? millions.toFixed(0) : millions.toFixed(1)}M`;
+  }
+  if (price >= 1000) {
+    const thousands = price / 1000;
+    return `$${thousands % 1 === 0 ? thousands.toFixed(0) : thousands.toFixed(0)}K`;
+  }
+  return `$${price.toLocaleString()}`;
+}
+
 export function HeroSearch({
   searchTerm: controlledSearch,
   onSearchChange,
@@ -144,6 +156,119 @@ export function HeroSearch({
     }
   };
 
+  const handleClearAllFilters = () => {
+    setLocalSearch('');
+    if (onSearchChange) onSearchChange('');
+    if (onSelectCategory) onSelectCategory('all');
+    updateUrlParams({
+      q: undefined,
+      location: undefined,
+      category: undefined,
+      minPrice: undefined,
+      maxPrice: undefined,
+      beds: undefined,
+      baths: undefined,
+      amenities: undefined,
+    });
+  };
+
+  // Build active filter chips for display
+  const activeChips = useMemo(() => {
+    const chips: { id: string; label: string; onRemove: () => void }[] = [];
+
+    if (currentParamSearch) {
+      chips.push({
+        id: 'search',
+        label: `"${currentParamSearch}"`,
+        onRemove: () => {
+          setLocalSearch('');
+          if (onSearchChange) onSearchChange('');
+          updateUrlParams({ q: undefined });
+        },
+      });
+    }
+
+    if (currentParamLocation) {
+      chips.push({
+        id: 'location',
+        label: `Location: ${currentParamLocation}`,
+        onRemove: () => updateUrlParams({ location: undefined }),
+      });
+    }
+
+    if (currentParamCategory && currentParamCategory !== 'all') {
+      const catLabel = CATEGORIES.find((c) => c.value === currentParamCategory)?.label || currentParamCategory;
+      chips.push({
+        id: 'category',
+        label: catLabel,
+        onRemove: () => {
+          if (onSelectCategory) onSelectCategory('all');
+          updateUrlParams({ category: undefined });
+        },
+      });
+    }
+
+    if (currentParamMinPrice !== undefined && currentParamMaxPrice !== undefined) {
+      chips.push({
+        id: 'price-range',
+        label: `${formatPriceShort(currentParamMinPrice)} - ${formatPriceShort(currentParamMaxPrice)}`,
+        onRemove: () => updateUrlParams({ minPrice: undefined, maxPrice: undefined }),
+      });
+    } else if (currentParamMinPrice !== undefined) {
+      chips.push({
+        id: 'min-price',
+        label: `Min ${formatPriceShort(currentParamMinPrice)}`,
+        onRemove: () => updateUrlParams({ minPrice: undefined }),
+      });
+    } else if (currentParamMaxPrice !== undefined) {
+      chips.push({
+        id: 'max-price',
+        label: `Max ${formatPriceShort(currentParamMaxPrice)}`,
+        onRemove: () => updateUrlParams({ maxPrice: undefined }),
+      });
+    }
+
+    if (currentParamBeds !== undefined && currentParamBeds > 0) {
+      chips.push({
+        id: 'beds',
+        label: `${currentParamBeds}+ Beds`,
+        onRemove: () => updateUrlParams({ beds: undefined }),
+      });
+    }
+
+    if (currentParamBaths !== undefined && currentParamBaths > 0) {
+      chips.push({
+        id: 'baths',
+        label: `${currentParamBaths}+ Baths`,
+        onRemove: () => updateUrlParams({ baths: undefined }),
+      });
+    }
+
+    if (currentParamAmenities.length > 0) {
+      currentParamAmenities.forEach((amenity) => {
+        chips.push({
+          id: `amenity-${amenity}`,
+          label: amenity,
+          onRemove: () => {
+            const next = currentParamAmenities.filter((a) => a !== amenity);
+            updateUrlParams({ amenities: next.length > 0 ? next.join(',') : undefined });
+          },
+        });
+      });
+    }
+
+    return chips;
+  }, [
+    currentParamSearch,
+    currentParamLocation,
+    currentParamCategory,
+    currentParamMinPrice,
+    currentParamMaxPrice,
+    currentParamBeds,
+    currentParamBaths,
+    currentParamAmenities,
+  ]);
+
   const modalInitialFilters: PropertyFilterValues = {
     location: currentParamLocation,
     minPrice: currentParamMinPrice,
@@ -208,6 +333,36 @@ export function HeroSearch({
             )}
           </button>
         </div>
+
+        {/* Active Filter Chips */}
+        {activeChips.length > 0 && (
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-1 animate-fadeIn">
+            <span className="text-xs text-[#5C706D] dark:text-gray-400 mr-1">Active filters:</span>
+            {activeChips.map((chip) => (
+              <span
+                key={chip.id}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#19322F]/5 dark:bg-white/10 text-[#19322F] dark:text-white border border-[#19322F]/10 dark:border-white/10 hover:border-[#006655]/40 dark:hover:border-[#06f9d0]/40 transition-colors shadow-2xs"
+              >
+                <span>{chip.label}</span>
+                <button
+                  type="button"
+                  onClick={chip.onRemove}
+                  aria-label={`Remove filter ${chip.label}`}
+                  className="flex items-center justify-center w-3.5 h-3.5 rounded-full hover:bg-black/10 dark:hover:bg-white/20 text-[#5C706D] dark:text-gray-300 hover:text-[#19322F] dark:hover:text-white transition-colors cursor-pointer"
+                >
+                  <span className="material-icons text-[12px] leading-none">close</span>
+                </button>
+              </span>
+            ))}
+            <button
+              type="button"
+              onClick={handleClearAllFilters}
+              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-[#006655] dark:text-[#06f9d0] hover:underline cursor-pointer transition-all"
+            >
+              <span>Clear all</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Filter Modal */}

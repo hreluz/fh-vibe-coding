@@ -83,7 +83,7 @@ export function FeaturedSection({
               type="button"
               className="flex items-center gap-1 text-sm font-medium text-[#006655] dark:text-[#06f9d0] hover:opacity-80 transition-opacity cursor-pointer"
             >
-              <span>View all ({properties.length})</span>
+              <span>View all</span>
               <span className="material-icons text-sm leading-none">arrow_forward</span>
             </button>
 
