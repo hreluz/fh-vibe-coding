@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Property } from '@/types/property';
 import { SectionHeader, IconButton } from '@/components/ui';
 import { FeaturedCard } from '@/components/properties';
+import { useTranslation } from '@/components/providers';
 
 interface FeaturedSectionProps {
   properties: Property[];
@@ -18,6 +19,7 @@ export function FeaturedSection({
   onViewAll,
 }: FeaturedSectionProps) {
   const router = useRouter();
+  const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(properties.length > 1);
@@ -73,8 +75,8 @@ export function FeaturedSection({
     <section className="mb-16">
       {/* Section Header with Navigation Controls */}
       <SectionHeader
-        title="Featured Collections"
-        subtitle="Curated luxury properties for the discerning eye."
+        title={t('featured.sectionTitle')}
+        subtitle={t('featured.sectionSubtitle')}
         rightElement={
           <div className="flex items-center gap-4">
             {/* View All Link */}
@@ -83,7 +85,7 @@ export function FeaturedSection({
               type="button"
               className="flex items-center gap-1 text-sm font-medium text-[#006655] dark:text-[#06f9d0] hover:opacity-80 transition-opacity cursor-pointer"
             >
-              <span>View all</span>
+              <span>{t('common.viewAll')}</span>
               <span className="material-icons text-sm leading-none">arrow_forward</span>
             </button>
 
@@ -100,7 +102,7 @@ export function FeaturedSection({
                   shape="rounded"
                   onClick={() => scroll('left')}
                   disabled={!canScrollLeft}
-                  aria-label="Previous featured property"
+                  aria-label={t('featured.prevProperty')}
                 />
                 <IconButton
                   icon="chevron_right"
@@ -109,7 +111,7 @@ export function FeaturedSection({
                   shape="rounded"
                   onClick={() => scroll('right')}
                   disabled={!canScrollRight}
-                  aria-label="Next featured property"
+                  aria-label={t('featured.nextProperty')}
                 />
               </div>
             )}
@@ -164,4 +166,5 @@ export function FeaturedSection({
     </section>
   );
 }
+
 

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Property } from '@/types/property';
 import { ModalPortal } from '@/components/ui';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useTranslation } from '@/components/providers';
 
 interface ScheduleVisitModalProps {
   property: Property;
@@ -18,6 +19,7 @@ export function ScheduleVisitModal({
   onClose,
   initialMode = 'schedule',
 }: ScheduleVisitModalProps) {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'schedule' | 'contact'>(initialMode);
   const [tourType, setTourType] = useState<'in_person' | 'video'>('in_person');
   const [selectedDate, setSelectedDate] = useState('');
@@ -75,7 +77,7 @@ export function ScheduleVisitModal({
             type="button"
             onClick={resetAndClose}
             className="absolute top-4 right-4 sm:top-5 sm:right-5 p-2 rounded-full text-[#5C706D] hover:text-[#19322F] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer z-10"
-            aria-label="Close modal"
+            aria-label={t('scheduleModal.close')}
           >
             <span className="material-icons text-xl">close</span>
           </button>
@@ -86,17 +88,29 @@ export function ScheduleVisitModal({
                 <span className="material-icons text-3xl">check_circle</span>
               </div>
               <h3 className="text-2xl font-bold">
-                {activeTab === 'schedule' ? 'Tour Requested!' : 'Message Sent!'}
+                {activeTab === 'schedule'
+                  ? t('scheduleModal.appointmentRequested')
+                  : t('scheduleModal.messageSent')}
               </h3>
               <p className="text-sm text-[#5C706D] dark:text-gray-300 max-w-sm mx-auto">
-                Thank you, <strong className="text-[#19322F] dark:text-white">{name || 'there'}</strong>! {agentName} has received your request for{' '}
-                <strong className="text-[#006655] dark:text-[#06f9d0]">{property.title}</strong> and will reach out shortly.
+                {t('scheduleModal.successMsg')}
               </p>
               {activeTab === 'schedule' && (
                 <div className="p-4 bg-[#EEF6F6] dark:bg-white/5 rounded-xl text-left text-xs space-y-1">
-                  <p><strong>Type:</strong> {tourType === 'in_person' ? 'In-Person Private Tour' : 'Live Video Tour'}</p>
-                  {selectedDate && <p><strong>Date:</strong> {selectedDate}</p>}
-                  <p><strong>Time Slot:</strong> {selectedTime}</p>
+                  <p>
+                    <strong>{t('scheduleModal.tabSchedule')}:</strong>{' '}
+                    {tourType === 'in_person'
+                      ? t('scheduleModal.inPersonTour')
+                      : t('scheduleModal.videoTour')}
+                  </p>
+                  {selectedDate && (
+                    <p>
+                      <strong>{t('scheduleModal.selectDate')}:</strong> {selectedDate}
+                    </p>
+                  )}
+                  <p>
+                    <strong>{t('scheduleModal.selectTime')}:</strong> {selectedTime}
+                  </p>
                 </div>
               )}
               <button
@@ -104,7 +118,7 @@ export function ScheduleVisitModal({
                 onClick={resetAndClose}
                 className="mt-4 w-full bg-[#006655] hover:bg-[#005544] text-white py-3 rounded-xl font-medium transition-all shadow-md cursor-pointer"
               >
-                Done
+                {t('scheduleModal.done')}
               </button>
             </div>
           ) : (
@@ -120,7 +134,7 @@ export function ScheduleVisitModal({
                       : 'border-transparent text-[#5C706D] hover:text-[#19322F] dark:hover:text-white'
                   }`}
                 >
-                  Schedule a Tour
+                  {t('scheduleModal.tabSchedule')}
                 </button>
                 <button
                   type="button"
@@ -131,7 +145,7 @@ export function ScheduleVisitModal({
                       : 'border-transparent text-[#5C706D] hover:text-[#19322F] dark:hover:text-white'
                   }`}
                 >
-                  Contact Agent
+                  {t('scheduleModal.tabContact')}
                 </button>
               </div>
 
@@ -154,7 +168,7 @@ export function ScheduleVisitModal({
                     }`}
                   >
                     <span className="material-icons text-base">directions_walk</span>
-                    In-Person Tour
+                    <span>{t('scheduleModal.inPersonTour')}</span>
                   </button>
                   <button
                     type="button"
@@ -166,7 +180,7 @@ export function ScheduleVisitModal({
                     }`}
                   >
                     <span className="material-icons text-base">videocam</span>
-                    Video Walkthrough
+                    <span>{t('scheduleModal.videoTour')}</span>
                   </button>
                 </div>
               )}
@@ -177,7 +191,7 @@ export function ScheduleVisitModal({
                   <>
                     <div>
                       <label className="block text-xs font-semibold text-[#19322F] dark:text-gray-200 mb-1">
-                        Preferred Date
+                        {t('scheduleModal.selectDate')}
                       </label>
                       <input
                         type="date"
@@ -190,7 +204,7 @@ export function ScheduleVisitModal({
 
                     <div>
                       <label className="block text-xs font-semibold text-[#19322F] dark:text-gray-200 mb-1">
-                        Available Time Slots
+                        {t('scheduleModal.selectTime')}
                       </label>
                       <div className="grid grid-cols-3 gap-1.5">
                         {timeSlots.map((slot) => (
@@ -216,12 +230,12 @@ export function ScheduleVisitModal({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                   <div>
                     <label className="block text-xs font-semibold text-[#19322F] dark:text-gray-200 mb-1">
-                      Your Name *
+                      {t('scheduleModal.name')} *
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="Jane Doe"
+                      placeholder={t('scheduleModal.namePlaceholder')}
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-[#EEF6F6]/50 dark:bg-white/5 text-sm focus:outline-none focus:ring-2 focus:ring-[#006655]"
@@ -229,11 +243,11 @@ export function ScheduleVisitModal({
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-[#19322F] dark:text-gray-200 mb-1">
-                      Phone Number
+                      {t('scheduleModal.phone')}
                     </label>
                     <input
                       type="tel"
-                      placeholder="+1 (555) 000-0000"
+                      placeholder={t('scheduleModal.phonePlaceholder')}
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-[#EEF6F6]/50 dark:bg-white/5 text-sm focus:outline-none focus:ring-2 focus:ring-[#006655]"
@@ -243,12 +257,12 @@ export function ScheduleVisitModal({
 
                 <div>
                   <label className="block text-xs font-semibold text-[#19322F] dark:text-gray-200 mb-1">
-                    Email Address *
+                    {t('scheduleModal.email')} *
                   </label>
                   <input
                     type="email"
                     required
-                    placeholder="jane@example.com"
+                    placeholder={t('scheduleModal.emailPlaceholder')}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-[#EEF6F6]/50 dark:bg-white/5 text-sm focus:outline-none focus:ring-2 focus:ring-[#006655]"
@@ -257,18 +271,12 @@ export function ScheduleVisitModal({
 
                 <div>
                   <label className="block text-xs font-semibold text-[#19322F] dark:text-gray-200 mb-1">
-                    {activeTab === 'schedule'
-                      ? 'Special Inquiries / Questions (Optional)'
-                      : 'Your Message *'}
+                    {t('scheduleModal.message')}
                   </label>
                   <textarea
                     rows={activeTab === 'schedule' ? 2 : 3}
                     required={activeTab === 'contact'}
-                    placeholder={
-                      activeTab === 'schedule'
-                        ? "e.g., I'd like to ask about parking..."
-                        : `Hello ${agentName}, I am interested in ${property.title}. Please provide more details.`
-                    }
+                    placeholder={t('scheduleModal.messagePlaceholder')}
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-[#EEF6F6]/50 dark:bg-white/5 text-sm focus:outline-none focus:ring-2 focus:ring-[#006655] resize-none"
@@ -282,7 +290,11 @@ export function ScheduleVisitModal({
                   <span className="material-icons text-base">
                     {activeTab === 'schedule' ? 'calendar_today' : 'send'}
                   </span>
-                  {activeTab === 'schedule' ? 'Request Tour Confirmation' : 'Send Message to Agent'}
+                  <span>
+                    {activeTab === 'schedule'
+                      ? t('scheduleModal.requestAppointment')
+                      : t('scheduleModal.sendMessage')}
+                  </span>
                 </button>
               </form>
             </div>
@@ -292,3 +304,4 @@ export function ScheduleVisitModal({
     </ModalPortal>
   );
 }
+

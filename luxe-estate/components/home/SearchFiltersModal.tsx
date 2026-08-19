@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ModalPortal } from '@/components/ui/ModalPortal';
 import { CategoryFilterType, PropertyFilterValues } from '@/types/property';
 import { ALL_PROPERTIES } from '@/data/mock-properties';
 import { matchesPropertyFilters } from '@/lib/services/properties';
+import { useTranslation } from '@/components/providers';
 
 export interface SearchFiltersModalProps {
   isOpen: boolean;
@@ -14,22 +15,14 @@ export interface SearchFiltersModalProps {
 }
 
 const AMENITY_OPTIONS = [
-  { id: 'Swimming Pool', label: 'Swimming Pool', icon: 'pool' },
-  { id: 'Gym', label: 'Gym', icon: 'fitness_center' },
-  { id: 'Parking', label: 'Parking', icon: 'local_parking' },
-  { id: 'Air Conditioning', label: 'Air Conditioning', icon: 'ac_unit' },
-  { id: 'High-speed Wifi', label: 'High-speed Wifi', icon: 'wifi' },
-  { id: 'Patio / Terrace', label: 'Patio / Terrace', icon: 'deck' },
-  { id: 'Wine Cellar', label: 'Wine Cellar', icon: 'wine_bar' },
-  { id: 'Smart Home System', label: 'Smart Home', icon: 'home' },
-];
-
-const PROPERTY_TYPES: { label: string; value: CategoryFilterType }[] = [
-  { label: 'Any Type', value: 'all' },
-  { label: 'House', value: 'house' },
-  { label: 'Apartment', value: 'apartment' },
-  { label: 'Villa', value: 'villa' },
-  { label: 'Penthouse', value: 'penthouse' },
+  { id: 'Swimming Pool', icon: 'pool' },
+  { id: 'Gym', icon: 'fitness_center' },
+  { id: 'Parking', icon: 'local_parking' },
+  { id: 'Air Conditioning', icon: 'ac_unit' },
+  { id: 'High-speed Wifi', icon: 'wifi' },
+  { id: 'Patio / Terrace', icon: 'deck' },
+  { id: 'Wine Cellar', icon: 'wine_bar' },
+  { id: 'Smart Home System', icon: 'home' },
 ];
 
 const MAX_SLIDER_PRICE = 20000000;
@@ -59,6 +52,7 @@ export function SearchFiltersModal({
   initialFilters,
   onApplyFilters,
 }: SearchFiltersModalProps) {
+  const { t } = useTranslation();
   const [location, setLocation] = useState(initialFilters.location || '');
   const [minPrice, setMinPrice] = useState<number>(initialFilters.minPrice || 0);
   const [maxPrice, setMaxPrice] = useState<number>(initialFilters.maxPrice || MAX_SLIDER_PRICE);
@@ -67,6 +61,17 @@ export function SearchFiltersModal({
   const [bathrooms, setBathrooms] = useState<number>(initialFilters.bathrooms || 0);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>(
     initialFilters.amenities || []
+  );
+
+  const propertyTypes: { label: string; value: CategoryFilterType }[] = useMemo(
+    () => [
+      { label: t('filters.anyType'), value: 'all' },
+      { label: t('common.house'), value: 'house' },
+      { label: t('common.apartment'), value: 'apartment' },
+      { label: t('common.villa'), value: 'villa' },
+      { label: t('common.penthouse'), value: 'penthouse' },
+    ],
+    [t]
   );
 
   // Sync state when initialFilters change or modal opens
@@ -192,12 +197,12 @@ export function SearchFiltersModal({
               id="filter-modal-title"
               className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white"
             >
-              Filters
+              {t('filters.title')}
             </h1>
             <button
               onClick={onClose}
-              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-gray-500 dark:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#006655]"
-              aria-label="Close filters modal"
+              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-gray-500 dark:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#006655] cursor-pointer"
+              aria-label={t('filters.close')}
             >
               <span className="material-icons text-2xl leading-none">close</span>
             </button>
@@ -211,7 +216,7 @@ export function SearchFiltersModal({
                 htmlFor="filter-location-input"
                 className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3"
               >
-                Location
+                {t('filters.location')}
               </label>
               <div className="relative group">
                 <span className="material-icons absolute left-4 top-3.5 text-gray-400 group-focus-within:text-[#006655] dark:group-focus-within:text-[#06f9d0] transition-colors">
@@ -221,7 +226,7 @@ export function SearchFiltersModal({
                   id="filter-location-input"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  placeholder="City, neighborhood, or address"
+                  placeholder={t('filters.locationPlaceholder')}
                   type="text"
                   className="w-full pl-12 pr-10 py-3 bg-[#EEF6F6] dark:bg-[#0f231f] border border-transparent rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:border-[#006655] dark:focus:border-[#06f9d0] focus:bg-white dark:focus:bg-[#0f231f] focus:outline-none transition-all shadow-sm text-sm"
                 />
@@ -229,8 +234,8 @@ export function SearchFiltersModal({
                   <button
                     type="button"
                     onClick={() => setLocation('')}
-                    className="absolute right-3.5 top-3.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                    aria-label="Clear location"
+                    className="absolute right-3.5 top-3.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+                    aria-label={t('filters.clearLocation')}
                   >
                     <span className="material-icons text-lg leading-none">cancel</span>
                   </button>
@@ -242,7 +247,7 @@ export function SearchFiltersModal({
             <section>
               <div className="flex justify-between items-end mb-4">
                 <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Price Range
+                  {t('filters.priceRange')}
                 </label>
                 <span className="text-sm font-semibold text-[#006655] dark:text-[#06f9d0]">
                   {formatPriceDisplay(minPrice)} –{' '}
@@ -290,7 +295,7 @@ export function SearchFiltersModal({
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-[#EEF6F6] dark:bg-[#0f231f] p-3 rounded-xl border border-transparent focus-within:border-[#006655]/40 dark:focus-within:border-[#06f9d0]/40 transition-colors">
                   <label className="block text-[10px] text-gray-500 dark:text-gray-400 uppercase font-medium mb-1">
-                    Min Price
+                    {t('filters.minPrice')}
                   </label>
                   <div className="flex items-center">
                     <span className="text-gray-400 mr-1 text-sm">$</span>
@@ -309,7 +314,7 @@ export function SearchFiltersModal({
 
                 <div className="bg-[#EEF6F6] dark:bg-[#0f231f] p-3 rounded-xl border border-transparent focus-within:border-[#006655]/40 dark:focus-within:border-[#06f9d0]/40 transition-colors">
                   <label className="block text-[10px] text-gray-500 dark:text-gray-400 uppercase font-medium mb-1">
-                    Max Price
+                    {t('filters.maxPrice')}
                   </label>
                   <div className="flex items-center">
                     <span className="text-gray-400 mr-1 text-sm">$</span>
@@ -333,7 +338,7 @@ export function SearchFiltersModal({
               {/* Property Type Dropdown */}
               <div className="space-y-3">
                 <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Property Type
+                  {t('filters.propertyType')}
                 </label>
                 <div className="relative">
                   <select
@@ -341,7 +346,7 @@ export function SearchFiltersModal({
                     onChange={(e) => setCategory(e.target.value as CategoryFilterType)}
                     className="w-full bg-[#EEF6F6] dark:bg-[#0f231f] border border-transparent rounded-xl py-3 pl-4 pr-10 text-gray-900 dark:text-white text-sm appearance-none focus:border-[#006655] dark:focus:border-[#06f9d0] focus:outline-none cursor-pointer"
                   >
-                    {PROPERTY_TYPES.map((type) => (
+                    {propertyTypes.map((type) => (
                       <option key={type.value} value={type.value} className="dark:bg-[#132b26]">
                         {type.label}
                       </option>
@@ -358,26 +363,26 @@ export function SearchFiltersModal({
                 {/* Bedrooms Counter */}
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    Bedrooms
+                    {t('filters.bedrooms')}
                   </span>
                   <div className="flex items-center space-x-3 bg-[#EEF6F6] dark:bg-[#0f231f] rounded-full p-1 border border-black/5 dark:border-white/5">
                     <button
                       type="button"
                       disabled={bedrooms === 0}
                       onClick={() => setBedrooms((b) => Math.max(0, b - 1))}
-                      className="w-8 h-8 rounded-full bg-white dark:bg-[#132b26] shadow-sm flex items-center justify-center text-gray-500 dark:text-gray-300 hover:text-[#006655] dark:hover:text-[#06f9d0] disabled:opacity-40 disabled:hover:text-gray-500 transition-colors"
+                      className="w-8 h-8 rounded-full bg-white dark:bg-[#132b26] shadow-sm flex items-center justify-center text-gray-500 dark:text-gray-300 hover:text-[#006655] dark:hover:text-[#06f9d0] disabled:opacity-40 disabled:hover:text-gray-500 transition-colors cursor-pointer"
                       aria-label="Decrease bedrooms"
                     >
                       <span className="material-icons text-base">remove</span>
                     </button>
                     <span className="text-sm font-semibold w-8 text-center text-gray-900 dark:text-white">
-                      {bedrooms === 0 ? 'Any' : `${bedrooms}+`}
+                      {bedrooms === 0 ? t('filters.any') : `${bedrooms}+`}
                     </span>
                     <button
                       type="button"
                       disabled={bedrooms >= 5}
                       onClick={() => setBedrooms((b) => Math.min(5, b + 1))}
-                      className="w-8 h-8 rounded-full bg-white dark:bg-[#132b26] shadow-sm flex items-center justify-center text-[#006655] dark:text-[#06f9d0] hover:bg-[#006655] hover:text-white dark:hover:bg-[#06f9d0] dark:hover:text-[#19322F] transition-colors"
+                      className="w-8 h-8 rounded-full bg-white dark:bg-[#132b26] shadow-sm flex items-center justify-center text-[#006655] dark:text-[#06f9d0] hover:bg-[#006655] hover:text-white dark:hover:bg-[#06f9d0] dark:hover:text-[#19322F] transition-colors cursor-pointer"
                       aria-label="Increase bedrooms"
                     >
                       <span className="material-icons text-base">add</span>
@@ -388,26 +393,26 @@ export function SearchFiltersModal({
                 {/* Bathrooms Counter */}
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    Bathrooms
+                    {t('filters.bathrooms')}
                   </span>
                   <div className="flex items-center space-x-3 bg-[#EEF6F6] dark:bg-[#0f231f] rounded-full p-1 border border-black/5 dark:border-white/5">
                     <button
                       type="button"
                       disabled={bathrooms === 0}
                       onClick={() => setBathrooms((b) => Math.max(0, b - 1))}
-                      className="w-8 h-8 rounded-full bg-white dark:bg-[#132b26] shadow-sm flex items-center justify-center text-gray-500 dark:text-gray-300 hover:text-[#006655] dark:hover:text-[#06f9d0] disabled:opacity-40 disabled:hover:text-gray-500 transition-colors"
+                      className="w-8 h-8 rounded-full bg-white dark:bg-[#132b26] shadow-sm flex items-center justify-center text-gray-500 dark:text-gray-300 hover:text-[#006655] dark:hover:text-[#06f9d0] disabled:opacity-40 disabled:hover:text-gray-500 transition-colors cursor-pointer"
                       aria-label="Decrease bathrooms"
                     >
                       <span className="material-icons text-base">remove</span>
                     </button>
                     <span className="text-sm font-semibold w-8 text-center text-gray-900 dark:text-white">
-                      {bathrooms === 0 ? 'Any' : `${bathrooms}+`}
+                      {bathrooms === 0 ? t('filters.any') : `${bathrooms}+`}
                     </span>
                     <button
                       type="button"
                       disabled={bathrooms >= 5}
                       onClick={() => setBathrooms((b) => Math.min(5, b + 1))}
-                      className="w-8 h-8 rounded-full bg-white dark:bg-[#132b26] shadow-sm flex items-center justify-center text-[#006655] dark:text-[#06f9d0] hover:bg-[#006655] hover:text-white dark:hover:bg-[#06f9d0] dark:hover:text-[#19322F] transition-colors"
+                      className="w-8 h-8 rounded-full bg-white dark:bg-[#132b26] shadow-sm flex items-center justify-center text-[#006655] dark:text-[#06f9d0] hover:bg-[#006655] hover:text-white dark:hover:bg-[#06f9d0] dark:hover:text-[#19322F] transition-colors cursor-pointer"
                       aria-label="Increase bathrooms"
                     >
                       <span className="material-icons text-base">add</span>
@@ -420,11 +425,12 @@ export function SearchFiltersModal({
             {/* Section 4: Amenities */}
             <section>
               <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">
-                Amenities &amp; Features
+                {t('filters.amenities')}
               </label>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {AMENITY_OPTIONS.map((amenity) => {
                   const isChecked = selectedAmenities.includes(amenity.id);
+                  const label = t(`amenities.${amenity.id}`);
                   return (
                     <button
                       key={amenity.id}
@@ -445,7 +451,7 @@ export function SearchFiltersModal({
                       >
                         {amenity.icon}
                       </span>
-                      <span className="truncate">{amenity.label}</span>
+                      <span className="truncate">{label}</span>
                       {isChecked && (
                         <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-[#006655] dark:bg-[#06f9d0] rounded-full animate-pulse" />
                       )}
@@ -463,7 +469,7 @@ export function SearchFiltersModal({
               onClick={handleClearAll}
               className="text-sm font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors underline decoration-gray-300 dark:decoration-gray-600 underline-offset-4 cursor-pointer"
             >
-              Clear all filters
+              {t('common.clearFilters')}
             </button>
 
             <button
@@ -471,7 +477,11 @@ export function SearchFiltersModal({
               onClick={handleApply}
               className="bg-[#006655] hover:bg-[#005244] text-white px-7 sm:px-8 py-3 rounded-xl font-medium shadow-lg shadow-[#006655]/25 hover:shadow-[#006655]/40 transition-all flex items-center gap-2 transform active:scale-95 cursor-pointer text-sm sm:text-base"
             >
-              <span>Show {matchingCount} {matchingCount === 1 ? 'Home' : 'Homes'}</span>
+              <span>
+                {matchingCount === 1
+                  ? t('filters.showSingle')
+                  : t('filters.showMultiple', { count: matchingCount })}
+              </span>
               <span className="material-icons text-sm leading-none">arrow_forward</span>
             </button>
           </footer>
@@ -480,3 +490,4 @@ export function SearchFiltersModal({
     </ModalPortal>
   );
 }
+

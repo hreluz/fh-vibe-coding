@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Property } from '@/types/property';
 import { FeaturedCard } from '@/components/properties';
 import { Pagination, Button } from '@/components/ui';
+import { useTranslation } from '@/components/providers';
 
 interface FeaturedListProps {
   properties: Property[];
@@ -21,6 +22,8 @@ export function FeaturedList({
   totalItems,
   pageSize,
 }: FeaturedListProps) {
+  const { t } = useTranslation();
+
   return (
     <section>
       {properties.length > 0 ? (
@@ -40,15 +43,15 @@ export function FeaturedList({
             </span>
           </div>
           <h3 className="text-xl font-medium text-[#19322F] dark:text-white">
-            No featured properties found
+            {t('featured.noResultsTitle')}
           </h3>
           <p className="text-[#5C706D] dark:text-gray-400 text-sm max-w-md mx-auto mt-2">
-            No featured properties matched your current filter or search criteria.
+            {t('featured.noResultsDesc')}
           </p>
           <div className="mt-6">
             <Link href="/featured">
               <Button variant="outline" size="sm">
-                Clear Filters
+                {t('featured.clearFilters')}
               </Button>
             </Link>
           </div>
@@ -69,3 +72,4 @@ export function FeaturedList({
     </section>
   );
 }
+

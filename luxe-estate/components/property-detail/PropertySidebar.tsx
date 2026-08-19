@@ -5,6 +5,7 @@ import { Property } from '@/types/property';
 import { PropertyMap } from '@/components/map';
 import { ModalPortal } from '@/components/ui';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useTranslation } from '@/components/providers';
 import { ScheduleVisitModal } from './ScheduleVisitModal';
 
 interface PropertySidebarProps {
@@ -15,6 +16,7 @@ export function PropertySidebar({ property }: PropertySidebarProps) {
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'schedule' | 'contact'>('schedule');
   const [isMapExpanded, setIsMapExpanded] = useState(false);
+  const { t } = useTranslation();
 
   // Lock body scroll when map modal is expanded
   useBodyScrollLock(isMapExpanded);
@@ -79,7 +81,7 @@ export function PropertySidebar({ property }: PropertySidebarProps) {
             </h1>
             {isRent && (
               <span className="text-sm font-medium text-[#5C706D] dark:text-gray-400">
-                /month
+                {t('propertyDetail.perMonth')}
               </span>
             )}
           </div>
@@ -140,7 +142,7 @@ export function PropertySidebar({ property }: PropertySidebarProps) {
             <span className="material-icons text-xl group-hover:scale-110 transition-transform">
               calendar_today
             </span>
-            <span>Schedule Visit</span>
+            <span>{t('propertyDetail.scheduleTour')}</span>
           </button>
 
           <button
@@ -149,7 +151,7 @@ export function PropertySidebar({ property }: PropertySidebarProps) {
             className="w-full bg-transparent border border-[#19322F]/15 dark:border-white/20 hover:border-[#006655] text-[#19322F] dark:text-gray-100 hover:text-[#006655] dark:hover:text-[#06f9d0] py-3.5 px-6 rounded-xl font-medium transition-all flex items-center justify-center gap-2 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5"
           >
             <span className="material-icons text-xl">mail_outline</span>
-            <span>Contact Agent</span>
+            <span>{t('propertyDetail.contactAgent')}</span>
           </button>
         </div>
       </div>
@@ -172,7 +174,7 @@ export function PropertySidebar({ property }: PropertySidebarProps) {
             className="absolute bottom-2 right-2 bg-white/90 dark:bg-[#19322F]/90 backdrop-blur text-xs font-semibold px-2.5 py-1.5 rounded-lg shadow-md text-[#19322F] dark:text-white hover:text-[#006655] dark:hover:text-[#06f9d0] transition-all cursor-pointer z-10 hover:scale-105 flex items-center gap-1"
           >
             <span className="material-icons text-xs">fullscreen</span>
-            <span>View on Map</span>
+            <span>{t('propertyDetail.exploreMap')}</span>
           </button>
         </div>
       </div>
@@ -191,7 +193,7 @@ export function PropertySidebar({ property }: PropertySidebarProps) {
               <div className="p-4 bg-white dark:bg-[#162e2a] border-b border-gray-200 dark:border-white/10 flex items-center justify-between z-10">
                 <div>
                   <h3 className="font-bold text-base text-[#19322F] dark:text-white">
-                    {property.title} - Location Map
+                    {property.title} - {t('propertyDetail.propertyLocation')}
                   </h3>
                   <p className="text-xs text-[#5C706D] dark:text-gray-400">
                     {property.location.formatted}
@@ -201,7 +203,7 @@ export function PropertySidebar({ property }: PropertySidebarProps) {
                   type="button"
                   onClick={() => setIsMapExpanded(false)}
                   className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
-                  aria-label="Close expanded map"
+                  aria-label={t('propertyDetail.closeMap')}
                 >
                   <span className="material-icons text-xl">close</span>
                 </button>
@@ -234,3 +236,4 @@ export function PropertySidebar({ property }: PropertySidebarProps) {
     </div>
   );
 }
+

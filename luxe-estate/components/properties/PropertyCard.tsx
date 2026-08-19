@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Property } from '@/types/property';
 import { Card, Badge, IconButton } from '@/components/ui';
+import { useTranslation } from '@/components/providers';
 
 interface PropertyCardProps {
   property: Property;
@@ -12,6 +13,7 @@ interface PropertyCardProps {
 
 export function PropertyCard({ property, onSelect }: PropertyCardProps) {
   const [isFavorite, setIsFavorite] = useState(false);
+  const { t } = useTranslation();
 
   const formattedPrice = new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -69,7 +71,7 @@ export function PropertyCard({ property, onSelect }: PropertyCardProps) {
           {/* Listing Status Badge */}
           <div className="absolute bottom-3 left-3 z-10">
             <Badge variant={isRent ? 'for_rent' : 'for_sale'}>
-              {isRent ? 'FOR RENT' : 'FOR SALE'}
+              {isRent ? t('common.forRent') : t('common.forSale')}
             </Badge>
           </div>
         </div>
@@ -80,7 +82,9 @@ export function PropertyCard({ property, onSelect }: PropertyCardProps) {
             <h3 className="font-bold text-lg text-[#19322F] dark:text-white">
               {formattedPrice}
               {isRent && (
-                <span className="text-xs font-normal text-[#5C706D] dark:text-gray-400 ml-0.5">/mo</span>
+                <span className="text-xs font-normal text-[#5C706D] dark:text-gray-400 ml-0.5">
+                  {t('common.perMonth')}
+                </span>
               )}
             </h3>
           </div>
@@ -105,7 +109,7 @@ export function PropertyCard({ property, onSelect }: PropertyCardProps) {
             </div>
             <div className="flex items-center gap-1">
               <span className="material-icons text-sm text-[#006655] dark:text-[#06f9d0]">square_foot</span>
-              <span>{property.specs.areaSqMeters}m²</span>
+              <span>{property.specs.areaSqMeters}{t('common.sqm')}</span>
             </div>
           </div>
         </div>
@@ -113,3 +117,4 @@ export function PropertyCard({ property, onSelect }: PropertyCardProps) {
     </Link>
   );
 }
+

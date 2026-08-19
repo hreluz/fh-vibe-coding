@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Property } from '@/types/property';
 import { Card, Badge, IconButton } from '@/components/ui';
+import { useTranslation } from '@/components/providers';
 
 interface FeaturedCardProps {
   property: Property;
@@ -12,6 +13,7 @@ interface FeaturedCardProps {
 
 export function FeaturedCard({ property, onSelect }: FeaturedCardProps) {
   const [isFavorite, setIsFavorite] = useState(false);
+  const { t } = useTranslation();
 
   const formattedPrice = new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -97,15 +99,19 @@ export function FeaturedCard({ property, onSelect }: FeaturedCardProps) {
           <div className="flex items-center gap-6 mt-6 pt-5 border-t border-[#19322F]/5 dark:border-white/10 text-sm text-[#5C706D] dark:text-gray-300">
             <div className="flex items-center gap-2">
               <span className="material-icons text-lg text-[#006655] dark:text-[#06f9d0]">king_bed</span>
-              <span>{property.specs.bedrooms} Beds</span>
+              <span>
+                {property.specs.bedrooms} {property.specs.bedrooms === 1 ? t('common.bed') : t('common.beds')}
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <span className="material-icons text-lg text-[#006655] dark:text-[#06f9d0]">bathtub</span>
-              <span>{property.specs.bathrooms} Baths</span>
+              <span>
+                {property.specs.bathrooms} {property.specs.bathrooms === 1 ? t('common.bath') : t('common.baths')}
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <span className="material-icons text-lg text-[#006655] dark:text-[#06f9d0]">square_foot</span>
-              <span>{property.specs.areaSqMeters.toLocaleString()} m²</span>
+              <span>{property.specs.areaSqMeters.toLocaleString()} {t('common.sqm')}</span>
             </div>
           </div>
         </div>
@@ -113,3 +119,4 @@ export function FeaturedCard({ property, onSelect }: FeaturedCardProps) {
     </Link>
   );
 }
+

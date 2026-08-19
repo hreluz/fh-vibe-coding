@@ -1,33 +1,41 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useTransition, useMemo } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { CategoryFilterType, ListingFilterType } from '@/types/property';
 import { PillTabs, PillTabItem, SearchInput } from '@/components/ui';
+import { useTranslation } from '@/components/providers';
 
 interface FeaturedFilterBarProps {
   totalItems: number;
 }
-
-const CATEGORIES: PillTabItem<CategoryFilterType>[] = [
-  { label: 'All Categories', value: 'all' },
-  { label: 'Villa', value: 'villa' },
-  { label: 'Penthouse', value: 'penthouse' },
-  { label: 'House', value: 'house' },
-  { label: 'Apartment', value: 'apartment' },
-];
-
-const LISTING_TYPES: PillTabItem<ListingFilterType>[] = [
-  { label: 'All', value: 'all' },
-  { label: 'Buy', value: 'for_sale' },
-  { label: 'Rent', value: 'for_rent' },
-];
 
 export function FeaturedFilterBar({ totalItems }: FeaturedFilterBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
+  const { t } = useTranslation();
+
+  const categories: PillTabItem<CategoryFilterType>[] = useMemo(
+    () => [
+      { label: t('featured.allCategories'), value: 'all' },
+      { label: t('common.villa'), value: 'villa' },
+      { label: t('common.penthouse'), value: 'penthouse' },
+      { label: t('common.house'), value: 'house' },
+      { label: t('common.apartment'), value: 'apartment' },
+    ],
+    [t]
+  );
+
+  const listingTypes: PillTabItem<ListingFilterType>[] = useMemo(
+    () => [
+      { label: t('common.all'), value: 'all' },
+      { label: t('common.buy'), value: 'for_sale' },
+      { label: t('common.rent'), value: 'for_rent' },
+    ],
+    [t]
+  );
 
   const currentSearch = searchParams.get('q') || '';
   const currentCategory = (searchParams.get('category') || 'all') as CategoryFilterType;
@@ -103,18 +111,18 @@ export function FeaturedFilterBar({ totalItems }: FeaturedFilterBarProps) {
             value={searchTerm}
             onChange={setSearchTerm}
             onSubmit={handleSearchSubmit}
-            placeholder="Search featured luxury properties..."
-            buttonLabel={isPending ? 'Searching...' : 'Search'}
+            placeholder={t('featured.searchPlaceholder')}
+            buttonLabel={isPending ? t('common.searching') : t('common.search')}
           />
         </div>
 
         {/* Listing Type Segmented Control */}
         <div className="flex items-center gap-3">
           <span className="text-xs uppercase tracking-wider font-semibold text-[#5C706D] dark:text-gray-400">
-            Listing:
+            {t('featured.listing')}
           </span>
           <PillTabs
-            items={LISTING_TYPES}
+            items={listingTypes}
             activeValue={currentListingType}
             onChange={handleListingTypeChange}
             variant="segmented"
@@ -126,7 +134,7 @@ export function FeaturedFilterBar({ totalItems }: FeaturedFilterBarProps) {
       <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-[#19322F]/5 dark:border-white/5">
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
           <PillTabs
-            items={CATEGORIES}
+            items={categories}
             activeValue={currentCategory}
             onChange={handleCategoryChange}
             variant="pills"
@@ -135,9 +143,12 @@ export function FeaturedFilterBar({ totalItems }: FeaturedFilterBarProps) {
 
         {/* Results Counter */}
         <div className="text-xs sm:text-sm font-medium text-[#5C706D] dark:text-gray-400">
-          Showing <span className="text-[#006655] dark:text-[#06f9d0] font-semibold">{totalItems}</span> {totalItems === 1 ? 'featured property' : 'featured properties'}
+          {totalItems === 1
+            ? t('featured.showingSingle')
+            : t('featured.showingMultiple', { count: totalItems })}
         </div>
       </div>
     </div>
   );
 }
+

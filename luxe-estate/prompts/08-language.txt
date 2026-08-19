@@ -1,0 +1,14 @@
+We need the app to be multilanguage
+
+I need
+- Spanish
+- English
+- French
+
+take in consideration that in the future we might have other languages
+
+- I need you to save a cookies with the user's language
+- We also need a language selector in case the user would like othe language
+- Create the translations' files so it will be easier to add new languages
+
+and also add the language selector in the navbar

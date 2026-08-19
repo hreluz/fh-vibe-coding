@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Property } from '@/types/property';
+import { useTranslation } from '@/components/providers';
 import { MortgageCalculatorModal } from './MortgageCalculatorModal';
 
 interface PropertyFeaturesProps {
@@ -11,6 +12,7 @@ interface PropertyFeaturesProps {
 export function PropertyFeatures({ property }: PropertyFeaturesProps) {
   const [isReadMore, setIsReadMore] = useState(false);
   const [isMortgageOpen, setIsMortgageOpen] = useState(false);
+  const { t } = useTranslation();
 
   const amenities =
     property.amenities && property.amenities.length > 0
@@ -46,7 +48,7 @@ export function PropertyFeatures({ property }: PropertyFeaturesProps) {
       {/* Property Features 4-Box Grid */}
       <div className="bg-white dark:bg-[#162e2a] p-6 sm:p-8 rounded-2xl shadow-sm border border-[#006655]/10 dark:border-white/10 transition-colors">
         <h2 className="text-lg font-bold mb-6 text-[#19322F] dark:text-white">
-          Property Features
+          {t('propertyDetail.propertyFeatures')}
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
           {/* Square Meters */}
@@ -58,7 +60,7 @@ export function PropertyFeatures({ property }: PropertyFeaturesProps) {
               {property.specs.areaSqMeters.toLocaleString()}
             </span>
             <span className="text-[11px] uppercase tracking-wider text-[#5C706D] dark:text-gray-400 font-semibold mt-0.5">
-              Square Meters
+              {t('propertyDetail.squareMeters')}
             </span>
           </div>
 
@@ -71,7 +73,7 @@ export function PropertyFeatures({ property }: PropertyFeaturesProps) {
               {property.specs.bedrooms}
             </span>
             <span className="text-[11px] uppercase tracking-wider text-[#5C706D] dark:text-gray-400 font-semibold mt-0.5">
-              Bedrooms
+              {t('propertyDetail.bedrooms')}
             </span>
           </div>
 
@@ -84,12 +86,12 @@ export function PropertyFeatures({ property }: PropertyFeaturesProps) {
               {property.specs.bathrooms}
             </span>
             <span className="text-[11px] uppercase tracking-wider text-[#5C706D] dark:text-gray-400 font-semibold mt-0.5">
-              Bathrooms
+              {t('propertyDetail.bathrooms')}
             </span>
           </div>
 
           {/* Garage */}
-          <div className="flex flex-col items-center justify-center p-4 bg-[#006655]/5 dark:bg-white/5 rounded-xl border border-[#006655]/10 dark:border-white/5 text-center">
+          <div className="flex flex-col items-center justify-center p-4 bg-[#006655]/5 dark:bg-white/5 rounded-xl border border-[#006655]/10 dark:border-white/10 text-center">
             <span className="material-icons text-[#006655] dark:text-[#06f9d0] text-2xl sm:text-3xl mb-2">
               directions_car
             </span>
@@ -97,7 +99,7 @@ export function PropertyFeatures({ property }: PropertyFeaturesProps) {
               {property.specs.garage ?? 1}
             </span>
             <span className="text-[11px] uppercase tracking-wider text-[#5C706D] dark:text-gray-400 font-semibold mt-0.5">
-              Garage
+              {t('propertyDetail.garage')}
             </span>
           </div>
         </div>
@@ -106,7 +108,7 @@ export function PropertyFeatures({ property }: PropertyFeaturesProps) {
       {/* About this home */}
       <div className="bg-white dark:bg-[#162e2a] p-6 sm:p-8 rounded-2xl shadow-sm border border-[#006655]/10 dark:border-white/10 transition-colors">
         <h2 className="text-lg font-bold mb-4 text-[#19322F] dark:text-white">
-          About this home
+          {t('propertyDetail.aboutHome')}
         </h2>
         <div className="text-[#19322F]/80 dark:text-gray-200 leading-relaxed text-sm sm:text-base space-y-4">
           {descriptionParagraphs.map((para, idx) => {
@@ -120,7 +122,7 @@ export function PropertyFeatures({ property }: PropertyFeaturesProps) {
             onClick={() => setIsReadMore(!isReadMore)}
             className="mt-4 text-[#006655] dark:text-[#06f9d0] font-semibold text-sm flex items-center gap-1 hover:gap-2 transition-all cursor-pointer"
           >
-            <span>{isReadMore ? 'Show less' : 'Read more'}</span>
+            <span>{isReadMore ? t('propertyDetail.showLess') : t('propertyDetail.readMore')}</span>
             <span className="material-icons text-sm">
               {isReadMore ? 'expand_less' : 'arrow_forward'}
             </span>
@@ -131,7 +133,7 @@ export function PropertyFeatures({ property }: PropertyFeaturesProps) {
       {/* Amenities Grid */}
       <div className="bg-white dark:bg-[#162e2a] p-6 sm:p-8 rounded-2xl shadow-sm border border-[#006655]/10 dark:border-white/10 transition-colors">
         <h2 className="text-lg font-bold mb-6 text-[#19322F] dark:text-white">
-          Amenities
+          {t('propertyDetail.amenities')}
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8">
           {amenities.map((item, idx) => (
@@ -142,7 +144,7 @@ export function PropertyFeatures({ property }: PropertyFeaturesProps) {
               <span className="material-icons text-[#006655] dark:text-[#06f9d0] text-lg flex-shrink-0">
                 check_circle
               </span>
-              <span>{item}</span>
+              <span>{t(`amenities.${item}`)}</span>
             </div>
           ))}
         </div>
@@ -156,14 +158,14 @@ export function PropertyFeatures({ property }: PropertyFeaturesProps) {
           </div>
           <div>
             <h3 className="font-bold text-[#19322F] dark:text-white text-base">
-              Estimated Payment
+              {t('propertyDetail.estimatedPayment')}
             </h3>
             <p className="text-xs sm:text-sm text-[#5C706D] dark:text-gray-300 mt-0.5">
-              Starting from{' '}
+              {t('propertyDetail.startingFrom')}{' '}
               <strong className="text-[#006655] dark:text-[#06f9d0]">
-                {estimatedMonthly}/mo
+                {estimatedMonthly}{t('common.perMonth')}
               </strong>{' '}
-              with 20% down
+              {t('propertyDetail.withDown')}
             </p>
           </div>
         </div>
@@ -172,7 +174,7 @@ export function PropertyFeatures({ property }: PropertyFeaturesProps) {
           onClick={() => setIsMortgageOpen(true)}
           className="whitespace-nowrap px-5 py-2.5 bg-white dark:bg-[#162e2a] border border-[#19322F]/10 dark:border-white/10 rounded-xl text-sm font-semibold hover:border-[#006655] text-[#19322F] dark:text-white transition-all shadow-sm cursor-pointer hover:scale-105"
         >
-          Calculate Mortgage
+          {t('propertyDetail.calculateMortgage')}
         </button>
       </div>
 
@@ -185,3 +187,4 @@ export function PropertyFeatures({ property }: PropertyFeaturesProps) {
     </div>
   );
 }
+

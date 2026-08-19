@@ -4,6 +4,7 @@ import React, { useState, useTransition, useMemo } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { CategoryFilterType, PropertyFilterValues } from '@/types/property';
 import { SearchInput, PillTabs, PillTabItem } from '@/components/ui';
+import { useTranslation } from '@/components/providers';
 import { SearchFiltersModal } from './SearchFiltersModal';
 
 interface HeroSearchProps {
@@ -13,14 +14,6 @@ interface HeroSearchProps {
   onSelectCategory?: (category: CategoryFilterType) => void;
   onOpenFiltersModal?: () => void;
 }
-
-const CATEGORIES: PillTabItem<CategoryFilterType>[] = [
-  { label: 'All', value: 'all' },
-  { label: 'House', value: 'house' },
-  { label: 'Apartment', value: 'apartment' },
-  { label: 'Villa', value: 'villa' },
-  { label: 'Penthouse', value: 'penthouse' },
-];
 
 function formatPriceShort(price: number): string {
   if (price >= 1000000) {
@@ -46,6 +39,18 @@ export function HeroSearch({
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { t } = useTranslation();
+
+  const categories: PillTabItem<CategoryFilterType>[] = useMemo(
+    () => [
+      { label: t('common.all'), value: 'all' },
+      { label: t('common.house'), value: 'house' },
+      { label: t('common.apartment'), value: 'apartment' },
+      { label: t('common.villa'), value: 'villa' },
+      { label: t('common.penthouse'), value: 'penthouse' },
+    ],
+    [t]
+  );
 
   // Read URL search params
   const currentParamSearch = searchParams.get('q') || '';
@@ -191,13 +196,13 @@ export function HeroSearch({
     if (currentParamLocation) {
       chips.push({
         id: 'location',
-        label: `Location: ${currentParamLocation}`,
+        label: `${t('filters.location')}: ${currentParamLocation}`,
         onRemove: () => updateUrlParams({ location: undefined }),
       });
     }
 
     if (currentParamCategory && currentParamCategory !== 'all') {
-      const catLabel = CATEGORIES.find((c) => c.value === currentParamCategory)?.label || currentParamCategory;
+      const catLabel = categories.find((c) => c.value === currentParamCategory)?.label || currentParamCategory;
       chips.push({
         id: 'category',
         label: catLabel,
@@ -231,7 +236,7 @@ export function HeroSearch({
     if (currentParamBeds !== undefined && currentParamBeds > 0) {
       chips.push({
         id: 'beds',
-        label: `${currentParamBeds}+ Beds`,
+        label: t('hero.bedsCount', { count: currentParamBeds }),
         onRemove: () => updateUrlParams({ beds: undefined }),
       });
     }
@@ -239,7 +244,7 @@ export function HeroSearch({
     if (currentParamBaths !== undefined && currentParamBaths > 0) {
       chips.push({
         id: 'baths',
-        label: `${currentParamBaths}+ Baths`,
+        label: t('hero.bathsCount', { count: currentParamBaths }),
         onRemove: () => updateUrlParams({ baths: undefined }),
       });
     }
@@ -248,7 +253,7 @@ export function HeroSearch({
       currentParamAmenities.forEach((amenity) => {
         chips.push({
           id: `amenity-${amenity}`,
-          label: amenity,
+          label: t(`amenities.${amenity}`),
           onRemove: () => {
             const next = currentParamAmenities.filter((a) => a !== amenity);
             updateUrlParams({ amenities: next.length > 0 ? next.join(',') : undefined });
@@ -267,6 +272,10 @@ export function HeroSearch({
     currentParamBeds,
     currentParamBaths,
     currentParamAmenities,
+    categories,
+    onSearchChange,
+    onSelectCategory,
+    t,
   ]);
 
   const modalInitialFilters: PropertyFilterValues = {
@@ -285,13 +294,13 @@ export function HeroSearch({
       <div className="max-w-3xl mx-auto text-center space-y-8">
         {/* Hero Title */}
         <h1 className="text-4xl md:text-5xl lg:text-6xl font-light text-[#19322F] dark:text-white leading-tight tracking-tight">
-          Find your{' '}
-          <span className="relative inline-block">
-            <span className="relative z-10 font-medium text-[#19322F] dark:text-white">sanctuary</span>
-            <span className="absolute bottom-2 left-0 w-full h-3.5 bg-[#D9ECC8] dark:bg-[#006655]/40 -rotate-1 z-0 rounded-sm"></span>
-          </span>
-          .
+          {t('hero.title')}
         </h1>
+
+        {/* Hero Subtitle */}
+        <p className="text-base sm:text-lg text-[#5C706D] dark:text-gray-300 max-w-2xl mx-auto -mt-3">
+          {t('hero.subtitle')}
+        </p>
 
         {/* Search Bar */}
         <div className="relative">
@@ -299,15 +308,15 @@ export function HeroSearch({
             value={localSearch}
             onChange={handleSearchChange}
             onSubmit={handleSearchSubmit}
-            placeholder="Search by city, neighborhood, or address..."
-            buttonLabel={isPending ? 'Searching...' : 'Search'}
+            placeholder={t('hero.searchPlaceholder')}
+            buttonLabel={isPending ? t('common.searching') : t('common.search')}
           />
         </div>
 
         {/* Category Pills & Filters */}
         <div className="flex items-center justify-center gap-2.5 sm:gap-3 overflow-x-auto hide-scroll py-2 px-4 -mx-4">
           <PillTabs
-            items={CATEGORIES}
+            items={categories}
             activeValue={activeCategory}
             onChange={handleCategorySelect}
             variant="pills"
@@ -325,7 +334,7 @@ export function HeroSearch({
             }`}
           >
             <span className="material-icons text-base leading-none">tune</span>
-            <span>Filters</span>
+            <span>{t('hero.filters')}</span>
             {activeFilterCount > 0 && (
               <span className="bg-white text-[#006655] text-xs px-1.5 py-0.2 rounded-full font-bold leading-tight">
                 {activeFilterCount}
@@ -337,7 +346,9 @@ export function HeroSearch({
         {/* Active Filter Chips */}
         {activeChips.length > 0 && (
           <div className="flex flex-wrap items-center justify-center gap-2 pt-1 animate-fadeIn">
-            <span className="text-xs text-[#5C706D] dark:text-gray-400 mr-1">Active filters:</span>
+            <span className="text-xs text-[#5C706D] dark:text-gray-400 mr-1">
+              {t('hero.activeFilters')}:
+            </span>
             {activeChips.map((chip) => (
               <span
                 key={chip.id}
@@ -359,7 +370,7 @@ export function HeroSearch({
               onClick={handleClearAllFilters}
               className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-[#006655] dark:text-[#06f9d0] hover:underline cursor-pointer transition-all"
             >
-              <span>Clear all</span>
+              <span>{t('hero.clearAll')}</span>
             </button>
           </div>
         )}
@@ -375,4 +386,5 @@ export function HeroSearch({
     </section>
   );
 }
+
 

@@ -3,8 +3,9 @@
 import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useTheme } from '@/components/providers';
+import { useTheme, useTranslation } from '@/components/providers';
 import { IconButton } from '@/components/ui';
+import { LanguageSelector } from './LanguageSelector';
 
 interface NavbarProps {
   activeTab?: string;
@@ -14,17 +15,24 @@ interface NavbarProps {
 function NavbarInner({ activeTab = 'Buy', onTabChange }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const navItems = ['Buy', 'Rent', 'Featured', 'Saved Homes'];
 
-  const handleNavClick = (item: string) => {
+  const navItems: { id: string; label: string }[] = [
+    { id: 'Buy', label: t('nav.buy') },
+    { id: 'Rent', label: t('nav.rent') },
+    { id: 'Featured', label: t('nav.featured') },
+    { id: 'Saved Homes', label: t('nav.savedHomes') },
+  ];
+
+  const handleNavClick = (itemId: string) => {
     if (onTabChange) {
-      onTabChange(item);
+      onTabChange(itemId);
       return;
     }
 
-    if (item === 'Featured') {
+    if (itemId === 'Featured') {
       router.push('/featured');
       return;
     }
@@ -32,13 +40,13 @@ function NavbarInner({ activeTab = 'Buy', onTabChange }: NavbarProps) {
     const params = new URLSearchParams(searchParams?.toString() || '');
     params.delete('page');
 
-    if (item === 'Buy') {
+    if (itemId === 'Buy') {
       params.set('type', 'for_sale');
       router.push(`/?${params.toString()}`);
-    } else if (item === 'Rent') {
+    } else if (itemId === 'Rent') {
       params.set('type', 'for_rent');
       router.push(`/?${params.toString()}`);
-    } else if (item === 'Saved Homes') {
+    } else if (itemId === 'Saved Homes') {
       params.delete('type');
       router.push(`/?${params.toString()}`);
     }
@@ -61,25 +69,30 @@ function NavbarInner({ activeTab = 'Buy', onTabChange }: NavbarProps) {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
             {navItems.map((item) => {
-              const isActive = activeTab === item;
+              const isActive = activeTab === item.id;
               return (
                 <button
-                  key={item}
-                  onClick={() => handleNavClick(item)}
+                  key={item.id}
+                  onClick={() => handleNavClick(item.id)}
                   className={`font-medium text-sm px-1 py-1 transition-all cursor-pointer ${
                     isActive
                       ? 'text-[#006655] dark:text-[#06f9d0] border-b-2 border-[#006655] dark:border-[#06f9d0]'
                       : 'text-[#19322F]/70 dark:text-white/70 hover:text-[#19322F] dark:hover:text-white hover:border-b-2 hover:border-[#19322F]/20 dark:hover:border-white/20'
                   }`}
                 >
-                  {item}
+                  {item.label}
                 </button>
               );
             })}
           </div>
 
-          {/* Action Icons & Profile */}
-          <div className="flex items-center space-x-2 sm:space-x-3">
+          {/* Action Icons, Language Selector & Profile */}
+          <div className="flex items-center space-x-1.5 sm:space-x-2.5">
+            {/* Language Selector Dropdown */}
+            <div className="hidden sm:block">
+              <LanguageSelector />
+            </div>
+
             {/* Dark / Light Mode Toggle Button */}
             <IconButton
               icon={theme === 'dark' ? 'light_mode' : 'dark_mode'}
@@ -88,8 +101,8 @@ function NavbarInner({ activeTab = 'Buy', onTabChange }: NavbarProps) {
               size="md"
               shape="rounded"
               suppressHydrationWarning
-              aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+              aria-label={theme === 'dark' ? t('nav.switchToLight') : t('nav.switchToDark')}
+              title={theme === 'dark' ? t('nav.switchToLight') : t('nav.switchToDark')}
             />
 
             {/* Search Icon */}
@@ -98,7 +111,7 @@ function NavbarInner({ activeTab = 'Buy', onTabChange }: NavbarProps) {
               variant="ghost"
               size="md"
               shape="rounded"
-              aria-label="Search"
+              aria-label={t('nav.search')}
             />
 
             {/* Notifications Icon */}
@@ -108,15 +121,19 @@ function NavbarInner({ activeTab = 'Buy', onTabChange }: NavbarProps) {
               size="md"
               shape="rounded"
               badgeDot
-              aria-label="Notifications"
+              aria-label={t('nav.notifications')}
             />
 
             {/* User Profile Avatar */}
-            <div className="flex items-center gap-2 pl-2 border-l border-[#19322F]/10 dark:border-white/10 ml-1 sm:ml-2">
-              <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-800 overflow-hidden ring-2 ring-transparent hover:ring-[#006655] dark:hover:ring-[#06f9d0] transition-all cursor-pointer">
+            <div className="flex items-center gap-2 pl-2 border-l border-[#19322F]/10 dark:border-white/10 ml-1">
+              <div
+                className="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-800 overflow-hidden ring-2 ring-transparent hover:ring-[#006655] dark:hover:ring-[#06f9d0] transition-all cursor-pointer"
+                title={t('nav.userProfile')}
+                aria-label={t('nav.userProfile')}
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  alt="User profile"
+                  alt={t('nav.userProfile')}
                   className="w-full h-full object-cover"
                   src="https://lh3.googleusercontent.com/aida-public/AB6AXuCAWhQZ663Bd08kmzjbOPmUk4UIxYooNONShMEFXLR-DtmVi6Oz-TiaY77SPwFk7g0OobkeZEOMvt6v29mSOD0Xm2g95WbBG3ZjWXmiABOUwGU0LOySRfVDo-JTXQ0-gtwjWxbmue0qDm91m-zEOEZwAW6iRFB1qC1bAU-wkjxm67Sbztq8w7srHkFT9bVEC86qG-FzhOBTomhAurNRmx9l8Yfqabk328NfdKuVLckgCdaPsNFE3yN65MeoRi05GA_gXIMwG4YDIeA"
                 />
@@ -131,7 +148,7 @@ function NavbarInner({ activeTab = 'Buy', onTabChange }: NavbarProps) {
                 variant="ghost"
                 size="md"
                 shape="rounded"
-                aria-label="Toggle menu"
+                aria-label={t('nav.toggleMenu')}
               />
             </div>
           </div>
@@ -140,26 +157,33 @@ function NavbarInner({ activeTab = 'Buy', onTabChange }: NavbarProps) {
 
       {/* Mobile dropdown menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-[#19322F]/10 dark:border-white/10 bg-[#EEF6F6] dark:bg-[#0f231f] px-4 py-3 space-y-1 animate-in fade-in slide-in-from-top-2 duration-200">
-          {navItems.map((item) => {
-            const isActive = activeTab === item;
-            return (
-              <button
-                key={item}
-                onClick={() => {
-                  handleNavClick(item);
-                  setMobileMenuOpen(false);
-                }}
-                className={`w-full text-left block px-3 py-2 rounded-lg text-base font-medium transition-colors ${
-                  isActive
-                    ? 'text-[#006655] dark:text-[#06f9d0] bg-[#006655]/10 dark:bg-white/10 font-semibold'
-                    : 'text-[#19322F] dark:text-gray-200 hover:bg-black/5 dark:hover:bg-white/5'
-                }`}
-              >
-                {item}
-              </button>
-            );
-          })}
+        <div className="md:hidden border-t border-[#19322F]/10 dark:border-white/10 bg-[#EEF6F6] dark:bg-[#0f231f] px-4 py-3 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="space-y-1">
+            {navItems.map((item) => {
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    handleNavClick(item.id);
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`w-full text-left block px-3 py-2 rounded-lg text-base font-medium transition-colors cursor-pointer ${
+                    isActive
+                      ? 'text-[#006655] dark:text-[#06f9d0] bg-[#006655]/10 dark:bg-white/10 font-semibold'
+                      : 'text-[#19322F] dark:text-gray-200 hover:bg-black/5 dark:hover:bg-white/5'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Mobile Language Selector */}
+          <div className="pt-2 border-t border-[#19322F]/10 dark:border-white/10">
+            <LanguageSelector variant="full" />
+          </div>
         </div>
       )}
     </nav>
@@ -188,3 +212,4 @@ export function Navbar(props: NavbarProps) {
     </Suspense>
   );
 }
+

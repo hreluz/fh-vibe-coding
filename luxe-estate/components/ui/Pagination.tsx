@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useTranslation } from '@/components/providers';
 
 export interface PaginationProps {
   currentPage: number;
@@ -22,6 +23,8 @@ export function Pagination({
   onPageChange,
   className = '',
 }: PaginationProps) {
+  const { t } = useTranslation();
+
   if (totalPages <= 1) {
     return null;
   }
@@ -168,22 +171,39 @@ export function Pagination({
       {/* Items Count Summary */}
       {totalItems !== undefined && (
         <p className="text-sm text-[#5C706D] dark:text-gray-400 order-2 sm:order-1">
-          Showing <span className="font-semibold text-[#19322F] dark:text-white">{startItem}</span> to{' '}
-          <span className="font-semibold text-[#19322F] dark:text-white">{endItem}</span> of{' '}
-          <span className="font-semibold text-[#19322F] dark:text-white">{totalItems}</span> properties
+          {t('pagination.showing')}{' '}
+          <span className="font-semibold text-[#19322F] dark:text-white">{startItem}</span>{' '}
+          {t('pagination.to')}{' '}
+          <span className="font-semibold text-[#19322F] dark:text-white">{endItem}</span>{' '}
+          {t('pagination.of')}{' '}
+          <span className="font-semibold text-[#19322F] dark:text-white">{totalItems}</span>{' '}
+          {t('pagination.properties')}
         </p>
       )}
 
       {/* Pagination Controls */}
       <div className="flex items-center gap-1.5 order-1 sm:order-2">
-        {renderNavButton('prev', currentPage - 1, currentPage <= 1, 'chevron_left', 'Previous')}
+        {renderNavButton(
+          'prev',
+          currentPage - 1,
+          currentPage <= 1,
+          'chevron_left',
+          t('pagination.previous')
+        )}
 
         <div className="flex items-center gap-1 mx-1">
           {pageNumbers.map((page, idx) => renderPageButton(page, idx))}
         </div>
 
-        {renderNavButton('next', currentPage + 1, currentPage >= totalPages, 'chevron_right', 'Next')}
+        {renderNavButton(
+          'next',
+          currentPage + 1,
+          currentPage >= totalPages,
+          'chevron_right',
+          t('pagination.next')
+        )}
       </div>
     </nav>
   );
 }
+

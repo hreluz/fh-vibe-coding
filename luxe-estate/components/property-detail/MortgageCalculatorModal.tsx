@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Property } from '@/types/property';
 import { ModalPortal } from '@/components/ui';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useTranslation } from '@/components/providers';
 
 interface MortgageCalculatorModalProps {
   property: Property;
@@ -16,6 +17,7 @@ export function MortgageCalculatorModal({
   isOpen,
   onClose,
 }: MortgageCalculatorModalProps) {
+  const { t } = useTranslation();
   const initialPrice = property.listingType === 'for_sale' ? property.price : property.price * 250;
   const [price, setPrice] = useState(initialPrice);
   const [downPaymentPercent, setDownPaymentPercent] = useState(20);
@@ -90,18 +92,15 @@ export function MortgageCalculatorModal({
             type="button"
             onClick={onClose}
             className="absolute top-4 right-4 sm:top-5 sm:right-5 p-2 rounded-full text-[#5C706D] hover:text-[#19322F] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer z-10"
-            aria-label="Close modal"
+            aria-label={t('mortgageModal.close')}
           >
             <span className="material-icons text-xl">close</span>
           </button>
 
           <div className="mb-5 pr-8">
-            <span className="text-xs font-semibold text-[#006655] dark:text-[#06f9d0] uppercase tracking-wider">
-              Affordability Calculator
-            </span>
-            <h2 className="text-2xl font-bold mt-1">Mortgage Estimate</h2>
+            <h2 className="text-2xl font-bold mt-1">{t('mortgageModal.title')}</h2>
             <p className="text-xs text-[#5C706D] dark:text-gray-400 mt-1">
-              Calculate your estimated monthly payment for {property.title}.
+              {t('mortgageModal.subtitle')}
             </p>
           </div>
 
@@ -109,17 +108,26 @@ export function MortgageCalculatorModal({
           <div className="bg-[#006655]/5 dark:bg-white/5 p-4 sm:p-5 rounded-xl border border-[#006655]/10 mb-5 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
               <span className="text-xs text-[#5C706D] dark:text-gray-400 font-medium">
-                Total Estimated Monthly Payment
+                {t('mortgageModal.estimatedMonthly')}
               </span>
               <div className="text-3xl sm:text-4xl font-bold text-[#006655] dark:text-[#06f9d0] mt-0.5">
                 {formatUSD(totalMonthlyPayment)}
-                <span className="text-sm font-normal text-[#5C706D] dark:text-gray-400">/mo</span>
+                <span className="text-sm font-normal text-[#5C706D] dark:text-gray-400">
+                  {t('common.perMonth')}
+                </span>
               </div>
             </div>
             <div className="text-xs text-right text-[#5C706D] dark:text-gray-400 space-y-1 sm:border-l border-gray-200 dark:border-white/10 sm:pl-4">
-              <p>Principal & Interest: <strong className="text-[#19322F] dark:text-white">{formatUSD(monthlyPrincipalAndInterest)}</strong></p>
-              <p>Property Taxes: <strong className="text-[#19322F] dark:text-white">{formatUSD(monthlyPropertyTax)}</strong></p>
-              <p>Home Insurance: <strong className="text-[#19322F] dark:text-white">{formatUSD(monthlyInsurance)}</strong></p>
+              <p>
+                {t('mortgageModal.principalInterest')}:{' '}
+                <strong className="text-[#19322F] dark:text-white">
+                  {formatUSD(monthlyPrincipalAndInterest)}
+                </strong>
+              </p>
+              <p>
+                {t('mortgageModal.loanAmount')}:{' '}
+                <strong className="text-[#19322F] dark:text-white">{formatUSD(loanAmount)}</strong>
+              </p>
             </div>
           </div>
 
@@ -128,7 +136,7 @@ export function MortgageCalculatorModal({
             {/* Price Slider */}
             <div className="space-y-1.5">
               <div className="flex justify-between text-xs font-semibold">
-                <span>Home Price</span>
+                <span>{t('mortgageModal.homePrice')}</span>
                 <span className="text-[#006655] dark:text-[#06f9d0]">{formatUSD(price)}</span>
               </div>
               <input
@@ -145,8 +153,12 @@ export function MortgageCalculatorModal({
             {/* Down Payment */}
             <div className="space-y-1.5">
               <div className="flex justify-between text-xs font-semibold">
-                <span>Down Payment ({downPaymentPercent}%)</span>
-                <span className="text-[#006655] dark:text-[#06f9d0]">{formatUSD(downPaymentAmount)}</span>
+                <span>
+                  {t('mortgageModal.downPayment')} ({downPaymentPercent}%)
+                </span>
+                <span className="text-[#006655] dark:text-[#06f9d0]">
+                  {formatUSD(downPaymentAmount)}
+                </span>
               </div>
               <input
                 type="range"
@@ -162,7 +174,7 @@ export function MortgageCalculatorModal({
             {/* Interest Rate */}
             <div className="space-y-1.5">
               <div className="flex justify-between text-xs font-semibold">
-                <span>Interest Rate</span>
+                <span>{t('mortgageModal.interestRate')}</span>
                 <span className="text-[#006655] dark:text-[#06f9d0]">{interestRate.toFixed(2)}%</span>
               </div>
               <input
@@ -178,7 +190,7 @@ export function MortgageCalculatorModal({
 
             {/* Loan Term */}
             <div className="space-y-1.5">
-              <span className="block text-xs font-semibold">Loan Term</span>
+              <span className="block text-xs font-semibold">{t('mortgageModal.loanTerm')}</span>
               <div className="grid grid-cols-3 gap-2">
                 {[15, 20, 30].map((term) => (
                   <button
@@ -191,12 +203,16 @@ export function MortgageCalculatorModal({
                         : 'border-gray-200 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5'
                     }`}
                   >
-                    {term} Years
+                    {term} {t('mortgageModal.years')}
                   </button>
                 ))}
               </div>
             </div>
           </div>
+
+          <p className="text-[11px] text-[#5C706D] dark:text-gray-400 mb-5">
+            {t('mortgageModal.disclaimer')}
+          </p>
 
           <div className="flex justify-end pt-2">
             <button
@@ -204,7 +220,7 @@ export function MortgageCalculatorModal({
               onClick={onClose}
               className="w-full sm:w-auto bg-[#006655] hover:bg-[#005544] text-white px-6 py-2.5 rounded-xl font-medium text-sm transition-all shadow-md cursor-pointer"
             >
-              Apply to Planning
+              {t('common.close')}
             </button>
           </div>
         </div>
@@ -212,3 +228,4 @@ export function MortgageCalculatorModal({
     </ModalPortal>
   );
 }
+

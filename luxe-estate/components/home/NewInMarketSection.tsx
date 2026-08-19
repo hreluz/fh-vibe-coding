@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useTransition } from 'react';
+import React, { useTransition, useMemo } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Property, ListingFilterType } from '@/types/property';
 import { SectionHeader, PillTabs, PillTabItem, Pagination } from '@/components/ui';
 import { PropertyCard } from '@/components/properties';
+import { useTranslation } from '@/components/providers';
 
 interface NewInMarketSectionProps {
   properties: Property[];
@@ -18,12 +19,6 @@ interface NewInMarketSectionProps {
   createPageUrl?: (page: number) => string;
   onPageChange?: (page: number) => void;
 }
-
-const FILTER_OPTIONS: PillTabItem<ListingFilterType>[] = [
-  { label: 'All', value: 'all' },
-  { label: 'Buy', value: 'for_sale' },
-  { label: 'Rent', value: 'for_rent' },
-];
 
 export function NewInMarketSection({
   properties,
@@ -41,6 +36,16 @@ export function NewInMarketSection({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
+  const { t } = useTranslation();
+
+  const filterOptions: PillTabItem<ListingFilterType>[] = useMemo(
+    () => [
+      { label: t('common.all'), value: 'all' },
+      { label: t('common.buy'), value: 'for_sale' },
+      { label: t('common.rent'), value: 'for_rent' },
+    ],
+    [t]
+  );
 
   const currentParamFilter = (searchParams.get('type') || 'all') as ListingFilterType;
   const activeListingFilter = controlledFilter ?? currentParamFilter;
@@ -82,11 +87,11 @@ export function NewInMarketSection({
     <section>
       {/* Section Header & Segmented Tabs */}
       <SectionHeader
-        title="New in Market"
-        subtitle="Fresh opportunities added this week."
+        title={t('newInMarket.title')}
+        subtitle={t('newInMarket.subtitle')}
         rightElement={
           <PillTabs
-            items={FILTER_OPTIONS}
+            items={filterOptions}
             activeValue={activeListingFilter}
             onChange={handleFilterChange}
             variant="segmented"
@@ -114,9 +119,11 @@ export function NewInMarketSection({
           <span className="material-icons text-4xl text-[#5C706D] dark:text-gray-400 mb-2">
             search_off
           </span>
-          <h3 className="text-lg font-medium text-[#19322F] dark:text-white">No properties found</h3>
+          <h3 className="text-lg font-medium text-[#19322F] dark:text-white">
+            {t('newInMarket.noResultsTitle')}
+          </h3>
           <p className="text-[#5C706D] dark:text-gray-400 text-sm mt-1 max-w-sm">
-            Try adjusting your search criteria, price range, or category filters.
+            {t('newInMarket.noResultsDesc')}
           </p>
           <button
             type="button"
@@ -127,10 +134,9 @@ export function NewInMarketSection({
             }}
             className="mt-4 px-4 py-2 bg-[#006655] hover:bg-[#005244] text-white rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-sm"
           >
-            Clear all filters
+            {t('common.clearFilters')}
           </button>
         </div>
-
       )}
 
       {/* Server-Side Pagination Bar */}
@@ -149,3 +155,4 @@ export function NewInMarketSection({
     </section>
   );
 }
+

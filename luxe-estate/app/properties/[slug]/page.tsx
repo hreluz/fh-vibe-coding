@@ -1,6 +1,7 @@
 import React from 'react';
 import { Metadata } from 'next';
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { Navbar } from '@/components/layout';
 import {
@@ -9,6 +10,8 @@ import {
   PropertyFeatures,
 } from '@/components/property-detail';
 import { getPropertyBySlug, getAllPropertySlugs } from '@/lib/services/properties';
+import { COOKIE_NAME, DEFAULT_LOCALE } from '@/lib/i18n/config';
+import { getTranslation, Locale } from '@/lib/i18n';
 
 interface PropertyDetailPageProps {
   params: Promise<{
@@ -79,6 +82,11 @@ export default async function PropertyDetailPage(props: PropertyDetailPageProps)
     notFound();
   }
 
+  const cookieStore = await cookies();
+  const locale = (cookieStore.get(COOKIE_NAME)?.value || DEFAULT_LOCALE) as Locale;
+  const t = (key: string, tParams?: Record<string, string | number>) =>
+    getTranslation(locale, key, tParams);
+
   // Schema.org JSON-LD Structured Data for Google Rich Snippets
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -139,14 +147,16 @@ export default async function PropertyDetailPage(props: PropertyDetailPageProps)
             className="hover:text-[#006655] dark:hover:text-[#06f9d0] transition-colors flex items-center gap-1"
           >
             <span className="material-icons text-sm">home</span>
-            <span>Home</span>
+            <span>{t('propertyDetail.home')}</span>
           </Link>
           <span className="text-gray-400 dark:text-gray-600">/</span>
           <Link
             href={property.listingType === 'for_rent' ? '/?type=for_rent' : '/?type=for_sale'}
             className="hover:text-[#006655] dark:hover:text-[#06f9d0] transition-colors"
           >
-            {property.listingType === 'for_rent' ? 'For Rent' : 'For Sale'}
+            {property.listingType === 'for_rent'
+              ? t('propertyDetail.forRent')
+              : t('propertyDetail.forSale')}
           </Link>
           <span className="text-gray-400 dark:text-gray-600">/</span>
           <span className="text-[#19322F] dark:text-white font-semibold truncate max-w-xs sm:max-w-sm">
@@ -177,20 +187,20 @@ export default async function PropertyDetailPage(props: PropertyDetailPageProps)
       <footer className="bg-white dark:bg-[#0b1b18] border-t border-slate-200 dark:border-white/10 mt-12 py-10 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="text-sm text-[#5C706D] dark:text-gray-400">
-            © {new Date().getFullYear()} LuxeEstate Inc. All rights reserved.
+            © {new Date().getFullYear()} LuxeEstate Inc. {t('footer.allRightsReserved')}
           </div>
           <div className="flex gap-6 text-sm text-[#5C706D] dark:text-gray-400">
             <Link href="/" className="hover:text-[#006655] dark:hover:text-[#06f9d0] transition-colors">
-              Explore Homes
+              {t('footer.exploreHomes')}
             </Link>
             <Link href="/featured" className="hover:text-[#006655] dark:hover:text-[#06f9d0] transition-colors">
-              Featured Collection
+              {t('footer.featuredCollection')}
             </Link>
             <a href="#" className="hover:text-[#006655] dark:hover:text-[#06f9d0] transition-colors">
-              Privacy Policy
+              {t('footer.privacyPolicy')}
             </a>
             <a href="#" className="hover:text-[#006655] dark:hover:text-[#06f9d0] transition-colors">
-              Terms of Service
+              {t('footer.termsOfService')}
             </a>
           </div>
         </div>
@@ -198,3 +208,4 @@ export default async function PropertyDetailPage(props: PropertyDetailPageProps)
     </div>
   );
 }
+
