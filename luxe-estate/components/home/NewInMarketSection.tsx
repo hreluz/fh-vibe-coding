@@ -110,15 +110,27 @@ export function NewInMarketSection({
           ))}
         </div>
       ) : (
-        <div className="text-center py-16 bg-white dark:bg-white/5 rounded-2xl border border-[#19322F]/5 dark:border-white/10">
+        <div className="text-center py-16 px-4 bg-white dark:bg-white/5 rounded-2xl border border-[#19322F]/5 dark:border-white/10 flex flex-col items-center justify-center">
           <span className="material-icons text-4xl text-[#5C706D] dark:text-gray-400 mb-2">
             search_off
           </span>
           <h3 className="text-lg font-medium text-[#19322F] dark:text-white">No properties found</h3>
-          <p className="text-[#5C706D] dark:text-gray-400 text-sm mt-1">
-            Try adjusting your search criteria or category filters.
+          <p className="text-[#5C706D] dark:text-gray-400 text-sm mt-1 max-w-sm">
+            Try adjusting your search criteria, price range, or category filters.
           </p>
+          <button
+            type="button"
+            onClick={() => {
+              startTransition(() => {
+                router.push(pathname, { scroll: false });
+              });
+            }}
+            className="mt-4 px-4 py-2 bg-[#006655] hover:bg-[#005244] text-white rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-sm"
+          >
+            Clear all filters
+          </button>
         </div>
+
       )}
 
       {/* Server-Side Pagination Bar */}

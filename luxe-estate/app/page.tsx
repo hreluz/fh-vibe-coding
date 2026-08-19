@@ -18,6 +18,12 @@ interface HomePageProps {
     category?: string;
     type?: string;
     q?: string;
+    location?: string;
+    minPrice?: string;
+    maxPrice?: string;
+    beds?: string;
+    baths?: string;
+    amenities?: string;
   }>;
 }
 
@@ -27,6 +33,14 @@ export default async function Home(props: HomePageProps) {
   const category = (searchParams.category || 'all') as CategoryFilterType;
   const listingType = (searchParams.type || 'all') as ListingFilterType;
   const searchQuery = searchParams.q || '';
+  const locationQuery = searchParams.location || '';
+  const minPrice = searchParams.minPrice ? parseInt(searchParams.minPrice, 10) : undefined;
+  const maxPrice = searchParams.maxPrice ? parseInt(searchParams.maxPrice, 10) : undefined;
+  const bedrooms = searchParams.beds ? parseInt(searchParams.beds, 10) : undefined;
+  const bathrooms = searchParams.baths ? parseInt(searchParams.baths, 10) : undefined;
+  const amenities = searchParams.amenities
+    ? searchParams.amenities.split(',').filter(Boolean)
+    : undefined;
 
   const { isConfigured } = getSupabaseEnv();
 
@@ -34,19 +48,27 @@ export default async function Home(props: HomePageProps) {
   const activeNavTab =
     listingType === 'for_sale' ? 'Buy' : listingType === 'for_rent' ? 'Rent' : 'Buy';
 
-  // Fetch data on the server in parallel if configured
-  const [featuredProperties, paginatedResult] = isConfigured
-    ? await Promise.all([
-        getFeaturedProperties({ category, query: searchQuery }),
-        getPaginatedProperties({
-          page,
-          pageSize: 8,
-          category,
-          listingType,
-          query: searchQuery,
-        }),
-      ])
-    : [[], { properties: [], total: 0, page: 1, pageSize: 8, totalPages: 0, hasPrevPage: false, hasNextPage: false }];
+  const filterOptions = {
+    category,
+    listingType,
+    query: searchQuery,
+    location: locationQuery,
+    minPrice,
+    maxPrice,
+    bedrooms,
+    bathrooms,
+    amenities,
+  };
+
+  // Fetch data on the server in parallel
+  const [featuredProperties, paginatedResult] = await Promise.all([
+    getFeaturedProperties(filterOptions),
+    getPaginatedProperties({
+      page,
+      pageSize: 8,
+      ...filterOptions,
+    }),
+  ]);
 
   return (
     <div className="min-h-screen bg-[#EEF6F6] dark:bg-[#0f231f] text-[#19322F] dark:text-white flex flex-col font-sans transition-colors duration-200">
@@ -80,3 +102,4 @@ export default async function Home(props: HomePageProps) {
     </div>
   );
 }
+

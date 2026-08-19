@@ -52,3 +52,16 @@ export interface Property {
 
 export type CategoryFilterType = 'all' | PropertyCategory;
 export type ListingFilterType = 'all' | ListingType;
+
+export interface PropertyFilterValues {
+  location?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  category?: CategoryFilterType;
+  listingType?: ListingFilterType;
+  bedrooms?: number;
+  bathrooms?: number;
+  amenities?: string[];
+  query?: string;
+}
+

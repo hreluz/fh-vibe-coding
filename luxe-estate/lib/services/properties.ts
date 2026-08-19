@@ -17,6 +17,12 @@ export interface GetPaginatedPropertiesOptions {
   category?: CategoryFilterType;
   listingType?: ListingFilterType;
   query?: string;
+  location?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  bedrooms?: number;
+  bathrooms?: number;
+  amenities?: string[];
   isFeatured?: boolean;
 }
 
@@ -28,6 +34,100 @@ export interface PaginatedPropertiesResult {
   totalPages: number;
   hasPrevPage: boolean;
   hasNextPage: boolean;
+}
+
+/**
+ * Checks whether a single property satisfies the specified filter values.
+ */
+export function matchesPropertyFilters(
+  prop: Property,
+  filters: {
+    category?: CategoryFilterType;
+    listingType?: ListingFilterType;
+    query?: string;
+    location?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    bedrooms?: number;
+    bathrooms?: number;
+    amenities?: string[];
+  }
+): boolean {
+  if (filters.category && filters.category !== 'all' && prop.category !== filters.category) {
+    return false;
+  }
+
+  if (filters.listingType && filters.listingType !== 'all' && prop.listingType !== filters.listingType) {
+    return false;
+  }
+
+  if (filters.minPrice !== undefined && !isNaN(filters.minPrice) && filters.minPrice > 0) {
+    if (prop.price < filters.minPrice) return false;
+  }
+
+  if (filters.maxPrice !== undefined && !isNaN(filters.maxPrice) && filters.maxPrice > 0) {
+    if (prop.price > filters.maxPrice) return false;
+  }
+
+  if (filters.bedrooms !== undefined && !isNaN(filters.bedrooms) && filters.bedrooms > 0) {
+    if (prop.specs.bedrooms < filters.bedrooms) return false;
+  }
+
+  if (filters.bathrooms !== undefined && !isNaN(filters.bathrooms) && filters.bathrooms > 0) {
+    if (prop.specs.bathrooms < filters.bathrooms) return false;
+  }
+
+  if (filters.location && filters.location.trim() !== '') {
+    const locTerm = filters.location.toLowerCase().trim();
+    const locMatch =
+      prop.location.formatted.toLowerCase().includes(locTerm) ||
+      prop.location.city.toLowerCase().includes(locTerm) ||
+      (prop.location.state && prop.location.state.toLowerCase().includes(locTerm)) ||
+      (prop.location.country && prop.location.country.toLowerCase().includes(locTerm)) ||
+      prop.location.address.toLowerCase().includes(locTerm);
+    if (!locMatch) return false;
+  }
+
+  if (filters.query && filters.query.trim() !== '') {
+    const qTerm = filters.query.toLowerCase().trim();
+    const qMatch =
+      prop.title.toLowerCase().includes(qTerm) ||
+      prop.location.formatted.toLowerCase().includes(qTerm) ||
+      prop.location.city.toLowerCase().includes(qTerm) ||
+      (prop.description && prop.description.toLowerCase().includes(qTerm));
+    if (!qMatch) return false;
+  }
+
+  if (filters.amenities && filters.amenities.length > 0) {
+    const propAmenities = (prop.amenities || []).map((a) => a.toLowerCase());
+    const hasAllAmenities = filters.amenities.every((reqAmenity) => {
+      const lowerReq = reqAmenity.toLowerCase();
+      return propAmenities.some((a) => a.includes(lowerReq) || lowerReq.includes(a));
+    });
+    if (!hasAllAmenities) return false;
+  }
+
+  return true;
+}
+
+/**
+ * Helper to count matching properties in a given array based on filter criteria.
+ */
+export function countMatchingProperties(
+  properties: Property[],
+  filters: {
+    category?: CategoryFilterType;
+    listingType?: ListingFilterType;
+    query?: string;
+    location?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    bedrooms?: number;
+    bathrooms?: number;
+    amenities?: string[];
+  }
+): number {
+  return properties.filter((p) => matchesPropertyFilters(p, filters)).length;
 }
 
 /**
@@ -106,7 +206,6 @@ export function mapPropertyRow(row: PropertyRow): Property {
   };
 }
 
-
 /**
  * Fetches a single property by its slug from Supabase or mock fallback.
  */
@@ -121,7 +220,6 @@ export async function getPropertyBySlug(slug: string): Promise<Property | null> 
   try {
     const supabase = createServerClient();
 
-    // Fetch property row
     const { data: propData, error: propError } = await supabase
       .from('properties')
       .select('*')
@@ -166,48 +264,86 @@ export async function getAllPropertySlugs(): Promise<string[]> {
 export async function getFeaturedProperties(options?: {
   category?: CategoryFilterType;
   query?: string;
+  location?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  bedrooms?: number;
+  bathrooms?: number;
+  amenities?: string[];
 }): Promise<Property[]> {
   const { isConfigured } = getSupabaseEnv();
   if (!isConfigured) {
-    let list = ALL_PROPERTIES.filter((p) => p.isFeatured);
+    const list = ALL_PROPERTIES.filter((p) => p.isFeatured);
+    return list.filter((p) =>
+      matchesPropertyFilters(p, {
+        category: options?.category,
+        query: options?.query,
+        location: options?.location,
+        minPrice: options?.minPrice,
+        maxPrice: options?.maxPrice,
+        bedrooms: options?.bedrooms,
+        bathrooms: options?.bathrooms,
+        amenities: options?.amenities,
+      })
+    );
+  }
+
+  try {
+    const supabase = createServerClient();
+    let query = supabase
+      .from('properties')
+      .select('*')
+      .eq('is_featured', true)
+      .order('created_at', { ascending: false });
+
     if (options?.category && options.category !== 'all') {
-      list = list.filter((p) => p.category === options.category);
+      query = query.eq('category', options.category);
     }
+
+    if (options?.minPrice !== undefined && !isNaN(options.minPrice) && options.minPrice > 0) {
+      query = query.gte('price', options.minPrice);
+    }
+
+    if (options?.maxPrice !== undefined && !isNaN(options.maxPrice) && options.maxPrice > 0) {
+      query = query.lte('price', options.maxPrice);
+    }
+
+    if (options?.bedrooms !== undefined && !isNaN(options.bedrooms) && options.bedrooms > 0) {
+      query = query.gte('bedrooms', options.bedrooms);
+    }
+
+    if (options?.bathrooms !== undefined && !isNaN(options.bathrooms) && options.bathrooms > 0) {
+      query = query.gte('bathrooms', options.bathrooms);
+    }
+
+    if (options?.location && options.location.trim() !== '') {
+      const loc = options.location.trim();
+      query = query.or(`location_formatted.ilike.%${loc}%,city.ilike.%${loc}%,address.ilike.%${loc}%`);
+    }
+
     if (options?.query && options.query.trim() !== '') {
-      const q = options.query.toLowerCase().trim();
-      list = list.filter(
-        (p) =>
-          p.title.toLowerCase().includes(q) ||
-          p.location.formatted.toLowerCase().includes(q)
-      );
+      const term = options.query.trim();
+      query = query.or(`title.ilike.%${term}%,location_formatted.ilike.%${term}%,description.ilike.%${term}%`);
     }
-    return list;
-  }
 
-  const supabase = createServerClient();
-  let query = supabase
-    .from('properties')
-    .select('*')
-    .eq('is_featured', true)
-    .order('created_at', { ascending: false });
+    const { data, error } = await query;
 
-  if (options?.category && options.category !== 'all') {
-    query = query.eq('category', options.category);
-  }
+    if (error) {
+      console.error('Error fetching featured properties:', error);
+      return [];
+    }
 
-  if (options?.query && options.query.trim() !== '') {
-    const term = options.query.trim();
-    query = query.or(`title.ilike.%${term}%,location_formatted.ilike.%${term}%`);
-  }
+    let results = (data || []).map((row) => mapPropertyRow(row));
 
-  const { data, error } = await query;
+    if (options?.amenities && options.amenities.length > 0) {
+      results = results.filter((p) => matchesPropertyFilters(p, { amenities: options.amenities }));
+    }
 
-  if (error) {
-    console.error('Error fetching featured properties:', error);
+    return results;
+  } catch (err) {
+    console.error('Error in getFeaturedProperties:', err);
     return [];
   }
-
-  return (data || []).map((row) => mapPropertyRow(row));
 }
 
 /**
@@ -219,6 +355,12 @@ export async function getPaginatedProperties({
   category = 'all',
   listingType = 'all',
   query = '',
+  location = '',
+  minPrice,
+  maxPrice,
+  bedrooms,
+  bathrooms,
+  amenities,
   isFeatured = false,
 }: GetPaginatedPropertiesOptions = {}): Promise<PaginatedPropertiesResult> {
   const currentPage = Math.max(1, page);
@@ -226,24 +368,26 @@ export async function getPaginatedProperties({
 
   if (!isConfigured) {
     let list = ALL_PROPERTIES.filter((p) => (isFeatured ? p.isFeatured : !p.isFeatured));
-    if (category && category !== 'all') {
-      list = list.filter((p) => p.category === category);
-    }
-    if (listingType && listingType !== 'all') {
-      list = list.filter((p) => p.listingType === listingType);
-    }
-    if (query && query.trim() !== '') {
-      const q = query.toLowerCase().trim();
-      list = list.filter(
-        (p) =>
-          p.title.toLowerCase().includes(q) ||
-          p.location.formatted.toLowerCase().includes(q)
-      );
-    }
+
+    list = list.filter((p) =>
+      matchesPropertyFilters(p, {
+        category,
+        listingType,
+        query,
+        location,
+        minPrice,
+        maxPrice,
+        bedrooms,
+        bathrooms,
+        amenities,
+      })
+    );
+
     const total = list.length;
     const totalPages = Math.ceil(total / pageSize);
     const from = (currentPage - 1) * pageSize;
     const properties = list.slice(from, from + pageSize);
+
     return {
       properties,
       total,
@@ -255,45 +399,91 @@ export async function getPaginatedProperties({
     };
   }
 
-  const supabase = createServerClient();
+  try {
+    const supabase = createServerClient();
 
-  let dbQuery = supabase
-    .from('properties')
-    .select('*', { count: 'exact' });
+    let dbQuery = supabase.from('properties').select('*', { count: 'exact' });
 
-  // Only filter out featured if explicitly specified
-  if (isFeatured !== undefined) {
-    dbQuery = dbQuery.eq('is_featured', isFeatured);
-  }
+    if (isFeatured !== undefined) {
+      dbQuery = dbQuery.eq('is_featured', isFeatured);
+    }
 
-  // Filter by category
-  if (category && category !== 'all') {
-    dbQuery = dbQuery.eq('category', category);
-  }
+    if (category && category !== 'all') {
+      dbQuery = dbQuery.eq('category', category);
+    }
 
-  // Filter by listing type (for_sale vs for_rent)
-  if (listingType && listingType !== 'all') {
-    dbQuery = dbQuery.eq('listing_type', listingType);
-  }
+    if (listingType && listingType !== 'all') {
+      dbQuery = dbQuery.eq('listing_type', listingType);
+    }
 
-  // Search by title or location
-  if (query && query.trim() !== '') {
-    const term = query.trim();
-    dbQuery = dbQuery.or(`title.ilike.%${term}%,location_formatted.ilike.%${term}%`);
-  }
+    if (minPrice !== undefined && !isNaN(minPrice) && minPrice > 0) {
+      dbQuery = dbQuery.gte('price', minPrice);
+    }
 
-  // Sort by newest first
-  dbQuery = dbQuery.order('created_at', { ascending: false });
+    if (maxPrice !== undefined && !isNaN(maxPrice) && maxPrice > 0) {
+      dbQuery = dbQuery.lte('price', maxPrice);
+    }
 
-  // Range calculation (0-indexed)
-  const from = (currentPage - 1) * pageSize;
-  const to = from + pageSize - 1;
-  dbQuery = dbQuery.range(from, to);
+    if (bedrooms !== undefined && !isNaN(bedrooms) && bedrooms > 0) {
+      dbQuery = dbQuery.gte('bedrooms', bedrooms);
+    }
 
-  const { data, count, error } = await dbQuery;
+    if (bathrooms !== undefined && !isNaN(bathrooms) && bathrooms > 0) {
+      dbQuery = dbQuery.gte('bathrooms', bathrooms);
+    }
 
-  if (error) {
-    console.error('Error fetching paginated properties:', error);
+    if (location && location.trim() !== '') {
+      const loc = location.trim();
+      dbQuery = dbQuery.or(`location_formatted.ilike.%${loc}%,city.ilike.%${loc}%,address.ilike.%${loc}%`);
+    }
+
+    if (query && query.trim() !== '') {
+      const term = query.trim();
+      dbQuery = dbQuery.or(`title.ilike.%${term}%,location_formatted.ilike.%${term}%,description.ilike.%${term}%`);
+    }
+
+    dbQuery = dbQuery.order('created_at', { ascending: false });
+
+    // Range calculation (0-indexed)
+    const from = (currentPage - 1) * pageSize;
+    const to = from + pageSize - 1;
+    dbQuery = dbQuery.range(from, to);
+
+    const { data, count, error } = await dbQuery;
+
+    if (error) {
+      console.error('Error fetching paginated properties:', error);
+      return {
+        properties: [],
+        total: 0,
+        page: currentPage,
+        pageSize,
+        totalPages: 0,
+        hasPrevPage: false,
+        hasNextPage: false,
+      };
+    }
+
+    let properties = (data || []).map((row) => mapPropertyRow(row));
+
+    if (amenities && amenities.length > 0) {
+      properties = properties.filter((p) => matchesPropertyFilters(p, { amenities }));
+    }
+
+    const total = count || properties.length;
+    const totalPages = Math.ceil(total / pageSize);
+
+    return {
+      properties,
+      total,
+      page: currentPage,
+      pageSize,
+      totalPages,
+      hasPrevPage: currentPage > 1,
+      hasNextPage: currentPage < totalPages,
+    };
+  } catch (err) {
+    console.error('Error in getPaginatedProperties:', err);
     return {
       properties: [],
       total: 0,
@@ -304,20 +494,6 @@ export async function getPaginatedProperties({
       hasNextPage: false,
     };
   }
-
-  const total = count || 0;
-  const totalPages = Math.ceil(total / pageSize);
-  const properties = (data || []).map((row) => mapPropertyRow(row));
-
-  return {
-    properties,
-    total,
-    page: currentPage,
-    pageSize,
-    totalPages,
-    hasPrevPage: currentPage > 1,
-    hasNextPage: currentPage < totalPages,
-  };
 }
 
 /**
@@ -331,3 +507,4 @@ export async function getFeaturedPaginatedProperties(
     isFeatured: true,
   });
 }
+

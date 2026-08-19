@@ -1,0 +1,8 @@
+[ss of the filter]
+
+
+let's work on the filters and search of properties in the home screen @page.tsx
+
+- For the button of filter, it should open a modal and look exactly like the design on @code.html
+
+- Add 20 more properties to search and assure that everything works, the values of these propertiesare random and should be kind of real names and real place, so that will work as placeholders
