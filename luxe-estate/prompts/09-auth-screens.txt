@@ -1,0 +1,11 @@
+/grill-me
+
+We need the login based on the login, same as antigravity/resources/social_login_and_registration
+
+- The user needs to have an avatar of google or github, so it will be shown in the navbar
+- Implement the Google SIgnin and Github Sigin based on Supabase
+
+
+
+https://console.cloud.google.com
+https://github.com/

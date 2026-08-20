@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import "./globals.css";
-import { ThemeProvider, LanguageProvider } from "@/components/providers";
+import { ThemeProvider, LanguageProvider, AuthProvider } from "@/components/providers";
 import { getValidLocale, COOKIE_NAME, DEFAULT_LOCALE } from "@/lib/i18n";
 
 export const metadata: Metadata = {
@@ -21,13 +21,16 @@ export default async function RootLayout({
   return (
     <html lang={initialLocale} className="h-full scroll-smooth" suppressHydrationWarning>
       <body className="min-h-full bg-[#EEF6F6] dark:bg-[#0f231f] text-[#19322F] dark:text-white antialiased selection:bg-[#006655] selection:text-white transition-colors duration-200">
-        <ThemeProvider>
-          <LanguageProvider initialLocale={initialLocale}>
-            {children}
-          </LanguageProvider>
-        </ThemeProvider>
+        <AuthProvider>
+          <ThemeProvider>
+            <LanguageProvider initialLocale={initialLocale}>
+              {children}
+            </LanguageProvider>
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );
 }
+
 

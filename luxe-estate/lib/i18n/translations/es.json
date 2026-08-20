@@ -203,5 +203,29 @@
   "languageSelector": {
     "selectLanguage": "Seleccionar idioma",
     "currentLanguage": "Idioma actual: {{name}}"
+  },
+  "auth": {
+    "signIn": "Iniciar Sesión",
+    "signOut": "Cerrar Sesión",
+    "signingIn": "Iniciando sesión...",
+    "signingOut": "Cerrando sesión...",
+    "welcomeTitle": "Bienvenido a LuxeEstate",
+    "welcomeSubtitle": "Descubre propiedades exclusivas en todo el mundo.",
+    "continueWithGoogle": "Continuar con Google",
+    "continueWithGitHub": "Continuar con GitHub",
+    "dontHaveAccount": "¿No tienes una cuenta?",
+    "signUp": "Regístrate",
+    "privacyPolicy": "Política de Privacidad",
+    "termsOfService": "Términos de Servicio",
+    "helpCenter": "Centro de Ayuda",
+    "signedInAs": "Sesión iniciada como",
+    "guest": "Invitado",
+    "myProfile": "Mi Perfil",
+    "savedHomes": "Propiedades Guardadas",
+    "configNoticeTitle": "Aviso de Configuración de Supabase",
+    "configNoticeDesc": "Por favor configura los proveedores OAuth de Google/GitHub en el panel de Supabase para completar el inicio de sesión.",
+    "errorNotice": "La autenticación falló o fue cancelada. Por favor inténtalo de nuevo.",
+    "backToHome": "Volver al Inicio"
   }
 }
+

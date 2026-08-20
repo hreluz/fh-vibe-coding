@@ -203,5 +203,29 @@
   "languageSelector": {
     "selectLanguage": "Choisir la langue",
     "currentLanguage": "Langue actuelle : {{name}}"
+  },
+  "auth": {
+    "signIn": "Se Connecter",
+    "signOut": "Se Déconnecter",
+    "signingIn": "Connexion en cours...",
+    "signingOut": "Déconnexion en cours...",
+    "welcomeTitle": "Bienvenue chez LuxeEstate",
+    "welcomeSubtitle": "Découvrez des propriétés exclusives à travers le monde.",
+    "continueWithGoogle": "Continuer avec Google",
+    "continueWithGitHub": "Continuer avec GitHub",
+    "dontHaveAccount": "Vous n'avez pas de compte ?",
+    "signUp": "S'inscrire",
+    "privacyPolicy": "Politique de Confidentialité",
+    "termsOfService": "Conditions d'Utilisation",
+    "helpCenter": "Centre d'Aide",
+    "signedInAs": "Connecté en tant que",
+    "guest": "Invité",
+    "myProfile": "Mon Profil",
+    "savedHomes": "Propriétés Enregistrées",
+    "configNoticeTitle": "Avis de Configuration Supabase",
+    "configNoticeDesc": "Veuillez configurer vos fournisseurs OAuth Google/GitHub dans le tableau de bord Supabase pour vous connecter.",
+    "errorNotice": "L'authentification a échoué ou a été annulée. Veuillez réessayer.",
+    "backToHome": "Retour à l'Accueil"
   }
 }
+

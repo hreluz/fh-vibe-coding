@@ -2,10 +2,11 @@
 
 import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useTheme, useTranslation } from '@/components/providers';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { useTheme, useTranslation, useAuth } from '@/components/providers';
 import { IconButton } from '@/components/ui';
 import { LanguageSelector } from './LanguageSelector';
+import { UserMenu } from './UserMenu';
 
 interface NavbarProps {
   activeTab?: string;
@@ -16,8 +17,13 @@ function NavbarInner({ activeTab = 'Buy', onTabChange }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const { t } = useTranslation();
+  const { user, isLoading, signOut } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
+
+  const currentPath = pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : '');
+  const loginUrl = `/login?next=${encodeURIComponent(currentPath)}`;
 
   const navItems: { id: string; label: string }[] = [
     { id: 'Buy', label: t('nav.buy') },
@@ -86,7 +92,7 @@ function NavbarInner({ activeTab = 'Buy', onTabChange }: NavbarProps) {
             })}
           </div>
 
-          {/* Action Icons, Language Selector & Profile */}
+          {/* Action Icons, Language Selector & Profile / Login */}
           <div className="flex items-center space-x-1.5 sm:space-x-2.5">
             {/* Language Selector Dropdown */}
             <div className="hidden sm:block">
@@ -124,20 +130,21 @@ function NavbarInner({ activeTab = 'Buy', onTabChange }: NavbarProps) {
               aria-label={t('nav.notifications')}
             />
 
-            {/* User Profile Avatar */}
+            {/* User Profile Avatar / Sign In */}
             <div className="flex items-center gap-2 pl-2 border-l border-[#19322F]/10 dark:border-white/10 ml-1">
-              <div
-                className="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-800 overflow-hidden ring-2 ring-transparent hover:ring-[#006655] dark:hover:ring-[#06f9d0] transition-all cursor-pointer"
-                title={t('nav.userProfile')}
-                aria-label={t('nav.userProfile')}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  alt={t('nav.userProfile')}
-                  className="w-full h-full object-cover"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuCAWhQZ663Bd08kmzjbOPmUk4UIxYooNONShMEFXLR-DtmVi6Oz-TiaY77SPwFk7g0OobkeZEOMvt6v29mSOD0Xm2g95WbBG3ZjWXmiABOUwGU0LOySRfVDo-JTXQ0-gtwjWxbmue0qDm91m-zEOEZwAW6iRFB1qC1bAU-wkjxm67Sbztq8w7srHkFT9bVEC86qG-FzhOBTomhAurNRmx9l8Yfqabk328NfdKuVLckgCdaPsNFE3yN65MeoRi05GA_gXIMwG4YDIeA"
-                />
-              </div>
+              {isLoading ? (
+                <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-800 animate-pulse" />
+              ) : user ? (
+                <UserMenu />
+              ) : (
+                <Link
+                  href={loginUrl}
+                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-medium bg-[#006655] hover:bg-[#004d40] text-white transition-all duration-200 shadow-xs hover:shadow-md cursor-pointer"
+                >
+                  <span className="material-icons text-base">login</span>
+                  <span>{t('auth.signIn')}</span>
+                </Link>
+              )}
             </div>
 
             {/* Mobile menu button */}
@@ -180,6 +187,45 @@ function NavbarInner({ activeTab = 'Buy', onTabChange }: NavbarProps) {
             })}
           </div>
 
+          {/* Mobile Auth Button / User Info */}
+          <div className="pt-2 border-t border-[#19322F]/10 dark:border-white/10">
+            {user ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-3 px-3 py-2">
+                  <UserMenu onNavigate={() => setMobileMenuOpen(false)} />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-[#19322F] dark:text-white truncate">
+                      {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                    </p>
+                    <p className="text-xs text-[#19322F]/60 dark:text-gray-400 truncate">
+                      {user.email}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await signOut();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors cursor-pointer"
+                >
+                  <span className="material-icons text-lg">logout</span>
+                  <span>{t('auth.signOut')}</span>
+                </button>
+              </div>
+            ) : (
+              <Link
+                href={loginUrl}
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-[#006655] text-white hover:bg-[#004d40] transition-colors"
+              >
+                <span className="material-icons text-base">login</span>
+                <span>{t('auth.signIn')}</span>
+              </Link>
+            )}
+          </div>
+
           {/* Mobile Language Selector */}
           <div className="pt-2 border-t border-[#19322F]/10 dark:border-white/10">
             <LanguageSelector variant="full" />
@@ -189,6 +235,7 @@ function NavbarInner({ activeTab = 'Buy', onTabChange }: NavbarProps) {
     </nav>
   );
 }
+
 
 export function Navbar(props: NavbarProps) {
   return (

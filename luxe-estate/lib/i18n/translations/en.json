@@ -203,5 +203,29 @@
   "languageSelector": {
     "selectLanguage": "Select language",
     "currentLanguage": "Current language: {{name}}"
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "signOut": "Sign Out",
+    "signingIn": "Signing in...",
+    "signingOut": "Signing out...",
+    "welcomeTitle": "Welcome to LuxeEstate",
+    "welcomeSubtitle": "Unlock exclusive properties worldwide.",
+    "continueWithGoogle": "Continue with Google",
+    "continueWithGitHub": "Continue with GitHub",
+    "dontHaveAccount": "Don't have an account?",
+    "signUp": "Sign up",
+    "privacyPolicy": "Privacy Policy",
+    "termsOfService": "Terms of Service",
+    "helpCenter": "Help Center",
+    "signedInAs": "Signed in as",
+    "guest": "Guest",
+    "myProfile": "My Profile",
+    "savedHomes": "Saved Homes",
+    "configNoticeTitle": "Supabase Setup Notice",
+    "configNoticeDesc": "Please configure your Google/GitHub OAuth providers in the Supabase Dashboard to complete sign in.",
+    "errorNotice": "Authentication failed or was canceled. Please try again.",
+    "backToHome": "Back to Home"
   }
 }
+
