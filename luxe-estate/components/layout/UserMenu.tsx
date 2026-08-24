@@ -11,7 +11,7 @@ interface UserMenuProps {
 }
 
 export function UserMenu({ onNavigate }: UserMenuProps) {
-  const { user, userName, userEmail, avatarUrl, provider, signOut } = useAuth();
+  const { user, userName, userEmail, avatarUrl, provider, role, isAdmin, signOut } = useAuth();
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -157,9 +157,16 @@ export function UserMenu({ onNavigate }: UserMenuProps) {
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-[#19322F] dark:text-white truncate">
-                  {userName || t('auth.guest')}
-                </p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-semibold text-[#19322F] dark:text-white truncate">
+                    {userName || t('auth.guest')}
+                  </p>
+                  {isAdmin && (
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 shrink-0">
+                      Admin
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-[#19322F]/60 dark:text-gray-400 truncate">
                   {userEmail || ''}
                 </p>
@@ -198,6 +205,23 @@ export function UserMenu({ onNavigate }: UserMenuProps) {
 
           {/* Menu Items */}
           <div className="p-2 space-y-1">
+            {/* Admin Dashboard shortcut for admins */}
+            {isAdmin && (
+              <Link
+                href="/admin"
+                onClick={() => {
+                  setIsOpen(false);
+                  if (onNavigate) onNavigate();
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors border border-purple-200/60 dark:border-purple-800/60 shadow-2xs"
+              >
+                <span className="material-icons text-lg text-purple-600 dark:text-purple-400">
+                  admin_panel_settings
+                </span>
+                <span>Admin Dashboard</span>
+              </Link>
+            )}
+
             <Link
               href="/"
               onClick={() => {

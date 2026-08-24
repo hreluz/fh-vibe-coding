@@ -17,7 +17,7 @@ function NavbarInner({ activeTab = 'Buy', onTabChange }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const { t } = useTranslation();
-  const { user, isLoading, signOut } = useAuth();
+  const { user, isAdmin, isLoading, signOut } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -25,16 +25,22 @@ function NavbarInner({ activeTab = 'Buy', onTabChange }: NavbarProps) {
   const currentPath = pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : '');
   const loginUrl = `/login?next=${encodeURIComponent(currentPath)}`;
 
-  const navItems: { id: string; label: string }[] = [
+  const navItems: { id: string; label: string; isAdminOnly?: boolean }[] = [
     { id: 'Buy', label: t('nav.buy') },
     { id: 'Rent', label: t('nav.rent') },
     { id: 'Featured', label: t('nav.featured') },
     { id: 'Saved Homes', label: t('nav.savedHomes') },
+    ...(isAdmin ? [{ id: 'Admin', label: 'Admin', isAdminOnly: true }] : []),
   ];
 
   const handleNavClick = (itemId: string) => {
     if (onTabChange) {
       onTabChange(itemId);
+      return;
+    }
+
+    if (itemId === 'Admin') {
+      router.push('/admin');
       return;
     }
 

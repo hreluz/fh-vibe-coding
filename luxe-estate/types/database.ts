@@ -6,6 +6,8 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
+export type UserRole = Database['public']['Enums']['user_role'];
+
 export type Database = {
   public: {
     Tables: {
@@ -90,15 +92,51 @@ export type Database = {
         };
         Relationships: [];
       };
+      user_roles: {
+        Row: {
+          id: string;
+          user_id: string;
+          email: string;
+          full_name: string | null;
+          avatar_url: string | null;
+          role: Database['public']['Enums']['user_role'];
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          email: string;
+          full_name?: string | null;
+          avatar_url?: string | null;
+          role?: Database['public']['Enums']['user_role'];
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          email?: string;
+          full_name?: string | null;
+          avatar_url?: string | null;
+          role?: Database['public']['Enums']['user_role'];
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      is_admin: {
+        Args: Record<PropertyKey, never>;
+        Returns: boolean;
+      };
     };
     Enums: {
-      [_ in never]: never;
+      user_role: 'admin' | 'user';
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -109,3 +147,7 @@ export type Database = {
 export type PropertyRow = Database['public']['Tables']['properties']['Row'];
 export type PropertyInsert = Database['public']['Tables']['properties']['Insert'];
 export type PropertyUpdate = Database['public']['Tables']['properties']['Update'];
+
+export type UserRoleRow = Database['public']['Tables']['user_roles']['Row'];
+export type UserRoleInsert = Database['public']['Tables']['user_roles']['Insert'];
+export type UserRoleUpdate = Database['public']['Tables']['user_roles']['Update'];

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ModalPortal } from '@/components/ui/ModalPortal';
 import { CategoryFilterType, PropertyFilterValues } from '@/types/property';
 import { ALL_PROPERTIES } from '@/data/mock-properties';
-import { matchesPropertyFilters } from '@/lib/services/properties';
+import { matchesPropertyFilters } from '@/lib/services/property-filters';
 import { useTranslation } from '@/components/providers';
 
 export interface SearchFiltersModalProps {

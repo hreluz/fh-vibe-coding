@@ -4,12 +4,15 @@ import React, { createContext, useContext, useEffect, useState, useMemo, useCall
 import { User, Session, Provider } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import { getSupabaseEnv } from '@/lib/supabase/env';
+import { UserRole } from '@/types/database';
 
 export type OAuthProvider = 'google' | 'github';
 
 export interface AuthContextType {
   user: User | null;
   session: Session | null;
+  role: UserRole | null;
+  isAdmin: boolean;
   isLoading: boolean;
   isConfigured: boolean;
   provider: OAuthProvider | null;
@@ -18,6 +21,7 @@ export interface AuthContextType {
   userEmail: string | null;
   signInWithOAuth: (provider: OAuthProvider, next?: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  refreshRole: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -64,10 +68,46 @@ function extractProvider(user: User | null): OAuthProvider | null {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [role, setRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const env = useMemo(() => getSupabaseEnv(), []);
   const supabase = useMemo(() => createClient(), []);
+
+  const fetchUserRole = useCallback(
+    async (userId: string, userEmail?: string | null) => {
+      try {
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (error) {
+          console.warn('Error fetching role in AuthProvider:', error.message);
+          setRole('user');
+          return;
+        }
+
+        if (data?.role) {
+          setRole(data.role as UserRole);
+        } else {
+          // Fallback if not yet in user_roles table
+          setRole('user');
+        }
+      } catch (err) {
+        console.warn('Exception fetching user role:', err);
+        setRole('user');
+      }
+    },
+    [supabase]
+  );
+
+  const refreshRole = useCallback(async () => {
+    if (user) {
+      await fetchUserRole(user.id, user.email);
+    }
+  }, [user, fetchUserRole]);
 
   useEffect(() => {
     if (!env.isConfigured) {
@@ -86,8 +126,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.warn('Error fetching Supabase session:', error.message);
         }
         setSession(session);
-        setUser(session?.user ?? null);
-        setIsLoading(false);
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+
+        if (currentUser) {
+          fetchUserRole(currentUser.id, currentUser.email).finally(() => {
+            if (mounted) setIsLoading(false);
+          });
+        } else {
+          setRole(null);
+          setIsLoading(false);
+        }
       })
       .catch((err) => {
         if (!mounted) return;
@@ -101,15 +150,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } = supabase.auth.onAuthStateChange((_event, currentSession) => {
       if (!mounted) return;
       setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-      setIsLoading(false);
+      const currentUser = currentSession?.user ?? null;
+      setUser(currentUser);
+
+      if (currentUser) {
+        fetchUserRole(currentUser.id, currentUser.email).finally(() => {
+          if (mounted) setIsLoading(false);
+        });
+      } else {
+        setRole(null);
+        setIsLoading(false);
+      }
     });
 
     return () => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [supabase, env.isConfigured]);
+  }, [supabase, env.isConfigured, fetchUserRole]);
 
   const signInWithOAuth = useCallback(
     async (oauthProvider: OAuthProvider, next?: string) => {
@@ -151,6 +209,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!env.isConfigured) {
       setUser(null);
       setSession(null);
+      setRole(null);
       return;
     }
 
@@ -161,6 +220,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setUser(null);
       setSession(null);
+      setRole(null);
     }
   }, [supabase, env.isConfigured]);
 
@@ -168,11 +228,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const userName = useMemo(() => extractUserName(user), [user]);
   const userEmail = useMemo(() => user?.email ?? null, [user]);
   const provider = useMemo(() => extractProvider(user), [user]);
+  const isAdmin = role === 'admin';
 
   const value = useMemo<AuthContextType>(
     () => ({
       user,
       session,
+      role,
+      isAdmin,
       isLoading,
       isConfigured: env.isConfigured,
       provider,
@@ -181,8 +244,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       userEmail,
       signInWithOAuth,
       signOut,
+      refreshRole,
     }),
-    [user, session, isLoading, env.isConfigured, provider, avatarUrl, userName, userEmail, signInWithOAuth, signOut]
+    [
+      user,
+      session,
+      role,
+      isAdmin,
+      isLoading,
+      env.isConfigured,
+      provider,
+      avatarUrl,
+      userName,
+      userEmail,
+      signInWithOAuth,
+      signOut,
+      refreshRole,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

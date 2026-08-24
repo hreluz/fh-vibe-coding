@@ -1,0 +1,6 @@
+/grill-me
+
+Let's create an admin dashboard that allows:
+- See the current properties
+- Edit the user roles authenticated in our app, create a table in the db for this task
+- Create a middleware to validate the user role
