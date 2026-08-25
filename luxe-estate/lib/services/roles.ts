@@ -16,6 +16,8 @@ export interface CurrentUserRoleResult {
 
 export interface AdminDashboardStats {
   totalProperties: number;
+  activePropertiesCount: number;
+  inactivePropertiesCount: number;
   forSaleCount: number;
   forRentCount: number;
   featuredCount: number;
@@ -293,6 +295,8 @@ export async function togglePropertyFeatured(
 export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
   const defaultStats: AdminDashboardStats = {
     totalProperties: 0,
+    activePropertiesCount: 0,
+    inactivePropertiesCount: 0,
     forSaleCount: 0,
     forRentCount: 0,
     featuredCount: 0,
@@ -309,17 +313,20 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
     // Fetch properties stats
     const { data: properties, error: propError } = await client
       .from('properties')
-      .select('id, price, listing_type, is_featured');
+      .select('id, price, listing_type, is_featured, is_active');
 
     if (!propError && properties) {
       defaultStats.totalProperties = properties.length;
-      defaultStats.forSaleCount = properties.filter((p) => p.listing_type === 'for_sale').length;
-      defaultStats.forRentCount = properties.filter((p) => p.listing_type === 'for_rent').length;
-      defaultStats.featuredCount = properties.filter((p) => p.is_featured).length;
+      defaultStats.activePropertiesCount = properties.filter((p) => p.is_active !== false).length;
+      defaultStats.inactivePropertiesCount = properties.filter((p) => p.is_active === false).length;
+      defaultStats.forSaleCount = properties.filter((p) => p.is_active !== false && p.listing_type === 'for_sale').length;
+      defaultStats.forRentCount = properties.filter((p) => p.is_active !== false && p.listing_type === 'for_rent').length;
+      defaultStats.featuredCount = properties.filter((p) => p.is_active !== false && p.is_featured).length;
       
-      if (properties.length > 0) {
-        const sum = properties.reduce((acc, p) => acc + (Number(p.price) || 0), 0);
-        defaultStats.averagePrice = Math.round(sum / properties.length);
+      const activeProps = properties.filter((p) => p.is_active !== false);
+      if (activeProps.length > 0) {
+        const sum = activeProps.reduce((acc, p) => acc + (Number(p.price) || 0), 0);
+        defaultStats.averagePrice = Math.round(sum / activeProps.length);
       }
     }
 

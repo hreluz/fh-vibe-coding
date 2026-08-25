@@ -73,6 +73,7 @@ export function PropertyForm({ mode, initialProperty }: PropertyFormProps) {
     initialProperty?.badge ? initialProperty.badge : 'none'
   );
   const [isFeatured, setIsFeatured] = useState<boolean>(initialProperty?.isFeatured ?? false);
+  const [isActive, setIsActive] = useState<boolean>(initialProperty?.isActive !== false);
 
   // Images
   const [images, setImages] = useState<string[]>(
@@ -87,8 +88,8 @@ export function PropertyForm({ mode, initialProperty }: PropertyFormProps) {
   // Form State
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeactivateModal, setShowDeactivateModal] = useState(false);
+  const [isDeactivating, setIsDeactivating] = useState(false);
 
   // Auto-generate slug when title changes (if user hasn't manually edited slug)
   const handleTitleChange = (val: string) => {
@@ -239,6 +240,8 @@ export function PropertyForm({ mode, initialProperty }: PropertyFormProps) {
       images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80'],
       badge: badge === 'none' ? null : badge,
       isFeatured: isDraft ? false : isFeatured,
+      isActive: isDraft ? false : isActive,
+      is_active: isDraft ? false : isActive,
       description: description.trim() || null,
       amenities,
       latitude: latitude || 34.0736,
@@ -278,27 +281,53 @@ export function PropertyForm({ mode, initialProperty }: PropertyFormProps) {
     }
   };
 
-  // Delete Handler
-  const handleDelete = async () => {
+  // Deactivate Handler
+  const handleDeactivate = async () => {
     if (!initialProperty?.id) return;
-    setIsDeleting(true);
+    setIsDeactivating(true);
     try {
       const res = await fetch(`/api/admin/properties/${initialProperty.id}`, {
         method: 'DELETE',
       });
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to delete property');
+        throw new Error(data.error || 'Failed to deactivate property');
       }
       startTransition(() => {
         router.push('/admin?tab=properties');
         router.refresh();
       });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to delete property';
+      const msg = err instanceof Error ? err.message : 'Failed to deactivate property';
       setErrorMsg(msg);
-      setIsDeleting(false);
-      setShowDeleteModal(false);
+      setIsDeactivating(false);
+      setShowDeactivateModal(false);
+    }
+  };
+
+  // Quick Reactivate Handler
+  const handleQuickReactivate = async () => {
+    if (!initialProperty?.id) return;
+    setIsSaving(true);
+    try {
+      const res = await fetch(`/api/admin/properties/${initialProperty.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to reactivate property');
+      }
+      setIsActive(true);
+      startTransition(() => {
+        router.refresh();
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to reactivate property';
+      setErrorMsg(msg);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -337,14 +366,28 @@ export function PropertyForm({ mode, initialProperty }: PropertyFormProps) {
         {/* Action Buttons Top Bar */}
         <div className="flex flex-wrap items-center gap-3">
           {mode === 'edit' && (
-            <button
-              type="button"
-              onClick={() => setShowDeleteModal(true)}
-              className="px-4 py-2.5 rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors font-medium text-sm flex items-center gap-1.5 cursor-pointer"
-            >
-              <span className="material-icons text-base">delete_outline</span>
-              <span>Delete</span>
-            </button>
+            isActive ? (
+              <button
+                type="button"
+                onClick={() => setShowDeactivateModal(true)}
+                className="px-4 py-2.5 rounded-lg border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors font-medium text-sm flex items-center gap-1.5 cursor-pointer"
+                title="Deactivate Listing"
+              >
+                <span className="material-icons text-base">pause_circle_outline</span>
+                <span>Deactivate</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={handleQuickReactivate}
+                className="px-4 py-2.5 rounded-lg border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors font-medium text-sm flex items-center gap-1.5 cursor-pointer"
+                title="Reactivate Listing"
+              >
+                <span className="material-icons text-base">play_circle_outline</span>
+                <span>Reactivate</span>
+              </button>
+            )
           )}
 
           <button
@@ -954,7 +997,7 @@ export function PropertyForm({ mode, initialProperty }: PropertyFormProps) {
 
               <hr className="border-gray-100 dark:border-neutral-800" />
 
-              {/* Marketing: Badge & Featured */}
+              {/* Marketing & Status: Badge, Featured, Active */}
               <div className="space-y-4">
                 <div>
                   <label className="text-xs text-gray-500 dark:text-neutral-400 font-medium mb-1 block" htmlFor="badge">
@@ -971,6 +1014,28 @@ export function PropertyForm({ mode, initialProperty }: PropertyFormProps) {
                     <option value="New Arrival">New Arrival</option>
                     <option value="Featured">Featured</option>
                   </select>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <div>
+                    <p className="text-sm font-medium text-[#19322F] dark:text-white">Active Listing</p>
+                    <p className="text-xs text-gray-400 dark:text-neutral-500">
+                      {isActive ? 'Visible in public search & filters' : 'Hidden from public view'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsActive(!isActive)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      isActive ? 'bg-[#006655]' : 'bg-gray-300 dark:bg-neutral-700'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        isActive ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
                 </div>
 
                 <div className="flex items-center justify-between pt-1">
@@ -1017,36 +1082,36 @@ export function PropertyForm({ mode, initialProperty }: PropertyFormProps) {
         </div>
       </form>
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
+      {/* Deactivate Confirmation Modal */}
+      {showDeactivateModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 flex items-center justify-center">
-              <span className="material-icons text-2xl">warning</span>
+            <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+              <span className="material-icons text-2xl">pause_circle_outline</span>
             </div>
             <div>
-              <h3 className="text-lg font-bold text-neutral-900 dark:text-white">Delete Property Listing?</h3>
+              <h3 className="text-lg font-bold text-neutral-900 dark:text-white">Deactivate Property Listing?</h3>
               <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-                Are you sure you want to delete <strong className="text-neutral-900 dark:text-white">{initialProperty?.title}</strong>? This action cannot be undone.
+                Are you sure you want to deactivate <strong className="text-neutral-900 dark:text-white">{initialProperty?.title}</strong>? It will be hidden from public search, category filters, and featured showcases. You can reactivate it anytime.
               </p>
             </div>
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
-                disabled={isDeleting}
-                onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 text-sm font-medium rounded-xl text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                disabled={isDeactivating}
+                onClick={() => setShowDeactivateModal(false)}
+                className="px-4 py-2 text-sm font-medium rounded-xl text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                disabled={isDeleting}
-                onClick={handleDelete}
-                className="px-4 py-2 text-sm font-semibold rounded-xl bg-red-600 hover:bg-red-700 text-white transition-colors flex items-center gap-1.5"
+                disabled={isDeactivating}
+                onClick={handleDeactivate}
+                className="px-4 py-2 text-sm font-semibold rounded-xl bg-amber-600 hover:bg-amber-700 text-white transition-colors flex items-center gap-1.5 cursor-pointer"
               >
-                {isDeleting && <span className="material-icons text-xs animate-spin">refresh</span>}
-                <span>{isDeleting ? 'Deleting...' : 'Confirm Delete'}</span>
+                {isDeactivating && <span className="material-icons text-xs animate-spin">refresh</span>}
+                <span>{isDeactivating ? 'Deactivating...' : 'Confirm Deactivation'}</span>
               </button>
             </div>
           </div>

@@ -16,6 +16,7 @@ interface AdminPageProps {
     category?: string;
     listingType?: string;
     featured?: string;
+    status?: string;
     role?: string;
   }>;
 }
@@ -35,6 +36,7 @@ export default async function AdminPage(props: AdminPageProps) {
   const category = (searchParams.category || 'all') as CategoryFilterType;
   const listingType = (searchParams.listingType || 'all') as ListingFilterType;
   const featured = searchParams.featured || 'all';
+  const status = (searchParams.status || 'all') as 'all' | 'active' | 'inactive';
   const role = (searchParams.role || 'all') as 'all' | 'admin' | 'user';
 
   const isFeatured =
@@ -52,6 +54,7 @@ export default async function AdminPage(props: AdminPageProps) {
       query: tab === 'properties' ? query : '',
       category: tab === 'properties' ? category : 'all',
       listingType: tab === 'properties' ? listingType : 'all',
+      status: tab === 'properties' ? status : 'all',
       isFeatured: tab === 'properties' ? isFeatured : undefined,
     }),
     getPaginatedUserRoles({
@@ -77,6 +80,7 @@ export default async function AdminPage(props: AdminPageProps) {
         category,
         listingType,
         featured,
+        status,
       }}
       initialUserFilters={{
         page: tab === 'users' ? page : 1,

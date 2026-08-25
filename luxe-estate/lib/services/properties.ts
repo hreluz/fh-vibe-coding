@@ -3,6 +3,7 @@ import { PropertyRow, PropertyInsert, PropertyUpdate } from '@/types/database';
 import {
   CategoryFilterType,
   ListingFilterType,
+  PropertyStatusFilter,
   ListingType,
   Property,
   PropertyBadge,
@@ -16,6 +17,8 @@ export interface GetPaginatedPropertiesOptions {
   pageSize?: number;
   category?: CategoryFilterType;
   listingType?: ListingFilterType;
+  status?: PropertyStatusFilter;
+  isActive?: boolean;
   query?: string;
   location?: string;
   minPrice?: number;
@@ -47,6 +50,8 @@ export function countMatchingProperties(
   filters: {
     category?: CategoryFilterType;
     listingType?: ListingFilterType;
+    status?: PropertyStatusFilter;
+    isActive?: boolean;
     query?: string;
     location?: string;
     minPrice?: number;
@@ -131,6 +136,7 @@ export function mapPropertyRow(row: PropertyRow): Property {
     images,
     badge: (row.badge as PropertyBadge) || null,
     isFeatured: row.is_featured,
+    isActive: row.is_active !== undefined ? Boolean(row.is_active) : (mockFallback?.isActive ?? true),
     description: row.description || mockFallback?.description || undefined,
     amenities,
     coordinates,
@@ -142,12 +148,19 @@ export function mapPropertyRow(row: PropertyRow): Property {
 /**
  * Fetches a single property by its slug from Supabase or mock fallback.
  */
-export async function getPropertyBySlug(slug: string): Promise<Property | null> {
+export async function getPropertyBySlug(
+  slug: string,
+  options?: { includeInactive?: boolean }
+): Promise<Property | null> {
   const decodedSlug = decodeURIComponent(slug);
   const { isConfigured } = getSupabaseEnv();
 
   if (!isConfigured) {
-    return ALL_PROPERTIES.find((p) => p.slug === decodedSlug) || null;
+    const prop = ALL_PROPERTIES.find((p) => p.slug === decodedSlug) || null;
+    if (prop && !options?.includeInactive && prop.isActive === false) {
+      return null;
+    }
+    return prop;
   }
 
   try {
@@ -159,40 +172,56 @@ export async function getPropertyBySlug(slug: string): Promise<Property | null> 
       .eq('slug', decodedSlug)
       .maybeSingle();
 
-    if (propError || !propData) {
-      return ALL_PROPERTIES.find((p) => p.slug === decodedSlug) || null;
+    if (propError) {
+      console.error('Error fetching property by slug:', propError);
     }
 
-    return mapPropertyRow(propData);
+    if (propData) {
+      const property = mapPropertyRow(propData);
+      if (!options?.includeInactive && property.isActive === false) {
+        return null;
+      }
+      return property;
+    }
+
+    // Only check mock fallback if the property record does not exist in DB at all
+    const fallback = ALL_PROPERTIES.find((p) => p.slug === decodedSlug) || null;
+    if (fallback && !options?.includeInactive && fallback.isActive === false) {
+      return null;
+    }
+    return fallback;
   } catch (err) {
     console.error('Error fetching property by slug:', err);
-    return ALL_PROPERTIES.find((p) => p.slug === decodedSlug) || null;
+    return null;
   }
 }
 
 /**
- * Fetches all property slugs for static routes or sitemaps.
+ * Fetches all property slugs for static routes or sitemaps (active only).
  */
 export async function getAllPropertySlugs(): Promise<string[]> {
   const { isConfigured } = getSupabaseEnv();
   if (!isConfigured) {
-    return ALL_PROPERTIES.map((p) => p.slug);
+    return ALL_PROPERTIES.filter((p) => p.isActive !== false).map((p) => p.slug);
   }
 
   try {
     const supabase = createServerClient();
-    const { data, error } = await supabase.from('properties').select('slug');
+    const { data, error } = await supabase
+      .from('properties')
+      .select('slug')
+      .eq('is_active', true);
     if (error || !data) {
-      return ALL_PROPERTIES.map((p) => p.slug);
+      return ALL_PROPERTIES.filter((p) => p.isActive !== false).map((p) => p.slug);
     }
     return data.map((item) => item.slug);
   } catch {
-    return ALL_PROPERTIES.map((p) => p.slug);
+    return ALL_PROPERTIES.filter((p) => p.isActive !== false).map((p) => p.slug);
   }
 }
 
 /**
- * Fetches featured properties directly from Supabase on the server.
+ * Fetches featured properties directly from Supabase on the server (active only).
  */
 export async function getFeaturedProperties(options?: {
   category?: CategoryFilterType;
@@ -206,7 +235,7 @@ export async function getFeaturedProperties(options?: {
 }): Promise<Property[]> {
   const { isConfigured } = getSupabaseEnv();
   if (!isConfigured) {
-    const list = ALL_PROPERTIES.filter((p) => p.isFeatured);
+    const list = ALL_PROPERTIES.filter((p) => p.isFeatured && p.isActive !== false);
     return list.filter((p) =>
       matchesPropertyFilters(p, {
         category: options?.category,
@@ -227,6 +256,7 @@ export async function getFeaturedProperties(options?: {
       .from('properties')
       .select('*')
       .eq('is_featured', true)
+      .eq('is_active', true)
       .order('created_at', { ascending: false });
 
     if (options?.category && options.category !== 'all') {
@@ -280,13 +310,15 @@ export async function getFeaturedProperties(options?: {
 }
 
 /**
- * Fetches paginated properties from Supabase with search, category, and listing filters.
+ * Fetches paginated properties from Supabase with search, category, listing, and status filters.
  */
 export async function getPaginatedProperties({
   page = 1,
   pageSize = 8,
   category = 'all',
   listingType = 'all',
+  status,
+  isActive,
   query = '',
   location = '',
   minPrice,
@@ -299,6 +331,10 @@ export async function getPaginatedProperties({
   const currentPage = Math.max(1, page);
   const { isConfigured } = getSupabaseEnv();
 
+  // Resolve status filter: defaults to 'active' for public queries unless explicitly requested
+  const effectiveStatus: PropertyStatusFilter =
+    status || (isActive !== undefined ? (isActive ? 'active' : 'inactive') : 'active');
+
   if (!isConfigured) {
     let list = isFeatured !== undefined
       ? ALL_PROPERTIES.filter((p) => (isFeatured ? p.isFeatured : !p.isFeatured))
@@ -308,6 +344,7 @@ export async function getPaginatedProperties({
       matchesPropertyFilters(p, {
         category,
         listingType,
+        status: effectiveStatus,
         query,
         location,
         minPrice,
@@ -338,6 +375,14 @@ export async function getPaginatedProperties({
     const supabase = createServerClient();
 
     let dbQuery = supabase.from('properties').select('*', { count: 'exact' });
+
+    // Status filtering
+    if (effectiveStatus === 'active') {
+      dbQuery = dbQuery.eq('is_active', true);
+    } else if (effectiveStatus === 'inactive') {
+      dbQuery = dbQuery.eq('is_active', false);
+    }
+    // If effectiveStatus === 'all', we do not filter on is_active
 
     if (isFeatured !== undefined) {
       dbQuery = dbQuery.eq('is_featured', isFeatured);
@@ -432,7 +477,7 @@ export async function getPaginatedProperties({
 }
 
 /**
- * Fetches paginated featured properties directly from Supabase on the server.
+ * Fetches paginated featured properties directly from Supabase on the server (active only).
  */
 export async function getFeaturedPaginatedProperties(
   options: Omit<GetPaginatedPropertiesOptions, 'isFeatured'> = {}
@@ -440,17 +485,25 @@ export async function getFeaturedPaginatedProperties(
   return getPaginatedProperties({
     ...options,
     isFeatured: true,
+    status: 'active',
   });
 }
 
 /**
  * Fetches a single property by its unique ID.
  */
-export async function getPropertyById(id: string): Promise<Property | null> {
+export async function getPropertyById(
+  id: string,
+  options?: { includeInactive?: boolean }
+): Promise<Property | null> {
   const { isConfigured } = getSupabaseEnv();
 
   if (!isConfigured) {
-    return ALL_PROPERTIES.find((p) => p.id === id) || null;
+    const prop = ALL_PROPERTIES.find((p) => p.id === id) || null;
+    if (prop && !options?.includeInactive && prop.isActive === false) {
+      return null;
+    }
+    return prop;
   }
 
   try {
@@ -461,15 +514,27 @@ export async function getPropertyById(id: string): Promise<Property | null> {
       .eq('id', id)
       .maybeSingle();
 
-    if (error || !data) {
-      // Fallback to mock data if not in DB
-      return ALL_PROPERTIES.find((p) => p.id === id) || null;
+    if (error) {
+      console.error('Error in getPropertyById:', error);
     }
 
-    return mapPropertyRow(data);
+    if (data) {
+      const property = mapPropertyRow(data);
+      if (!options?.includeInactive && property.isActive === false) {
+        return null;
+      }
+      return property;
+    }
+
+    // Fallback to mock data only if not found in DB
+    const fallback = ALL_PROPERTIES.find((p) => p.id === id) || null;
+    if (fallback && !options?.includeInactive && fallback.isActive === false) {
+      return null;
+    }
+    return fallback;
   } catch (err) {
     console.error('Error in getPropertyById:', err);
-    return ALL_PROPERTIES.find((p) => p.id === id) || null;
+    return null;
   }
 }
 
@@ -544,6 +609,7 @@ export async function createProperty(
   const insertData: PropertyInsert = {
     ...input,
     slug,
+    is_active: input.is_active !== undefined ? input.is_active : true,
     location_formatted: locationFormatted,
     created_at: new Date().toISOString(),
   };
@@ -575,6 +641,7 @@ export async function createProperty(
       images: insertData.images || ['https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80'],
       badge: (insertData.badge as PropertyBadge) || null,
       isFeatured: insertData.is_featured || false,
+      isActive: insertData.is_active !== false,
       description: insertData.description || undefined,
       amenities: insertData.amenities || [],
       coordinates:
@@ -657,32 +724,21 @@ export async function updateProperty(
 }
 
 /**
- * Deletes a property listing in Supabase.
+ * Soft-deactivates a property listing in Supabase instead of permanently deleting it.
  */
 export async function deleteProperty(id: string): Promise<{ success: boolean; error?: string }> {
-  const { isConfigured } = getSupabaseEnv();
-
-  if (!isConfigured) {
-    return { success: true };
-  }
-
-  try {
-    const adminClient = createAdminClient();
-    const supabase = adminClient || createServerClient();
-
-    const { error } = await supabase.from('properties').delete().eq('id', id);
-
-    if (error) {
-      console.error('Error deleting property:', error);
-      return { success: false, error: error.message };
-    }
-
-    return { success: true };
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Failed to delete property';
-    console.error('Exception in deleteProperty:', message);
-    return { success: false, error: message };
-  }
+  return updateProperty(id, { is_active: false });
 }
+
+/**
+ * Toggles a property's active status.
+ */
+export async function togglePropertyActive(
+  id: string,
+  isActive: boolean
+): Promise<{ success: boolean; error?: string }> {
+  return updateProperty(id, { is_active: isActive });
+}
+
 
 

@@ -28,6 +28,7 @@ export type Database = {
           images: string[] | null;
           image_alt: string | null;
           is_featured: boolean;
+          is_active: boolean;
           latitude: number | null;
           listing_type: string;
           location_formatted: string;
@@ -55,6 +56,7 @@ export type Database = {
           images?: string[] | null;
           image_alt?: string | null;
           is_featured?: boolean;
+          is_active?: boolean;
           latitude?: number | null;
           listing_type: string;
           location_formatted: string;
@@ -82,6 +84,7 @@ export type Database = {
           images?: string[] | null;
           image_alt?: string | null;
           is_featured?: boolean;
+          is_active?: boolean;
           latitude?: number | null;
           listing_type?: string;
           location_formatted?: string;

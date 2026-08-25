@@ -1,0 +1,7 @@
+/grill-me
+
+We need to avoid to delete properties in the database, instead we should deactivate properties
+
+- When the property is deactivated, it shouldn't be shown in the user search or filter on the HomeScreen
+
+- But it should be shown in the admin panel for future updates

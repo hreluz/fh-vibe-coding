@@ -14,6 +14,7 @@ export interface AdminPropertiesFilters {
   category: string;
   listingType: string;
   featured: string;
+  status: string;
 }
 
 interface PropertiesTableProps {
@@ -33,12 +34,13 @@ export function PropertiesTable({
   const [isPending, startTransition] = useTransition();
 
   const [optimisticFeatured, setOptimisticFeatured] = useState<Record<string, boolean>>({});
+  const [optimisticActive, setOptimisticActive] = useState<Record<string, boolean>>({});
   const [prevQuery, setPrevQuery] = useState(filters.query);
   const [searchQuery, setSearchQuery] = useState(filters.query);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<Property | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [deactivateTarget, setDeactivateTarget] = useState<Property | null>(null);
+  const [isDeactivating, setIsDeactivating] = useState(false);
 
   // Sync state with prop change during render
   if (filters.query !== prevQuery) {
@@ -47,10 +49,14 @@ export function PropertiesTable({
   }
 
   const properties = propertiesResult.properties.map((p) => {
+    let item = { ...p };
     if (optimisticFeatured[p.id] !== undefined) {
-      return { ...p, isFeatured: optimisticFeatured[p.id] };
+      item.isFeatured = optimisticFeatured[p.id];
     }
-    return p;
+    if (optimisticActive[p.id] !== undefined) {
+      item.isActive = optimisticActive[p.id];
+    }
+    return item;
   });
 
   const showToast = (text: string, type: 'success' | 'error') => {
@@ -105,6 +111,12 @@ export function PropertiesTable({
         params.delete('featured');
       }
 
+      if (newFilters.status && newFilters.status !== 'all') {
+        params.set('status', newFilters.status);
+      } else {
+        params.delete('status');
+      }
+
       const qs = params.toString();
       return qs ? `${pathname}?${qs}` : pathname;
     },
@@ -140,11 +152,10 @@ export function PropertiesTable({
     setUpdatingId(property.id);
 
     try {
-      const res = await fetch('/api/admin/properties', {
-        method: 'PATCH',
+      const res = await fetch(`/api/admin/properties/${property.id}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          propertyId: property.id,
           isFeatured: nextState,
         }),
       });
@@ -173,29 +184,65 @@ export function PropertiesTable({
     }
   };
 
-  const handleConfirmDelete = async () => {
-    if (!deleteTarget) return;
-    setIsDeleting(true);
+  const handleReactivate = async (property: Property) => {
+    setUpdatingId(property.id);
+    setOptimisticActive((prev) => ({ ...prev, [property.id]: true }));
+
     try {
-      const res = await fetch(`/api/admin/properties/${deleteTarget.id}`, {
-        method: 'DELETE',
+      const res = await fetch(`/api/admin/properties/${property.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isActive: true,
+        }),
       });
+
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to delete property');
+        throw new Error(data.error || 'Failed to reactivate property');
       }
 
-      showToast(`Property "${deleteTarget.title}" was deleted.`, 'success');
-      setDeleteTarget(null);
+      showToast(`Property "${property.title}" is now active and visible publicly.`, 'success');
       if (onStatsRefresh) onStatsRefresh();
       startTransition(() => {
         router.refresh();
       });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to delete property';
+      setOptimisticActive((prev) => {
+        const next = { ...prev };
+        delete next[property.id];
+        return next;
+      });
+      const msg = err instanceof Error ? err.message : 'Failed to reactivate property';
       showToast(msg, 'error');
     } finally {
-      setIsDeleting(false);
+      setUpdatingId(null);
+    }
+  };
+
+  const handleConfirmDeactivate = async () => {
+    if (!deactivateTarget) return;
+    setIsDeactivating(true);
+    try {
+      const res = await fetch(`/api/admin/properties/${deactivateTarget.id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to deactivate property');
+      }
+
+      showToast(`Property "${deactivateTarget.title}" was deactivated and hidden from public view.`, 'success');
+      setDeactivateTarget(null);
+      if (onStatsRefresh) onStatsRefresh();
+      startTransition(() => {
+        router.refresh();
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to deactivate property';
+      showToast(msg, 'error');
+    } finally {
+      setIsDeactivating(false);
     }
   };
 
@@ -275,6 +322,17 @@ export function PropertiesTable({
 
           {/* Filters & Page Size Selector */}
           <div className="flex flex-wrap items-center gap-2">
+            {/* Status Filter (Active / Inactive / All) */}
+            <select
+              value={filters.status}
+              onChange={(e) => applyFilters({ status: e.target.value, page: 1 })}
+              className="px-3 py-2 text-xs font-medium bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-800 dark:text-neutral-200 focus:outline-none focus:ring-2 focus:ring-[#006655] cursor-pointer"
+            >
+              <option value="all">All Statuses</option>
+              <option value="active">Active Only</option>
+              <option value="inactive">Deactivated Only</option>
+            </select>
+
             {/* Category Select */}
             <select
               value={filters.category}
@@ -294,7 +352,7 @@ export function PropertiesTable({
               onChange={(e) => applyFilters({ listingType: e.target.value, page: 1 })}
               className="px-3 py-2 text-xs font-medium bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-800 dark:text-neutral-200 focus:outline-none focus:ring-2 focus:ring-[#006655] cursor-pointer"
             >
-              <option value="all">All Listings</option>
+              <option value="all">All Types</option>
               <option value="for_sale">For Sale</option>
               <option value="for_rent">For Rent</option>
             </select>
@@ -305,7 +363,7 @@ export function PropertiesTable({
               onChange={(e) => applyFilters({ featured: e.target.value, page: 1 })}
               className="px-3 py-2 text-xs font-medium bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-800 dark:text-neutral-200 focus:outline-none focus:ring-2 focus:ring-[#006655] cursor-pointer"
             >
-              <option value="all">All Statuses</option>
+              <option value="all">Featured: All</option>
               <option value="featured_only">Featured Only</option>
               <option value="standard_only">Standard Only</option>
             </select>
@@ -367,14 +425,15 @@ export function PropertiesTable({
                 <th className="px-3 py-3.5">Category & Type</th>
                 <th className="px-3 py-3.5">Price</th>
                 <th className="px-3 py-3.5">Specs</th>
-                <th className="px-3 py-3.5 text-center">Featured Status</th>
+                <th className="px-3 py-3.5 text-center">Status</th>
+                <th className="px-3 py-3.5 text-center">Featured</th>
                 <th className="py-3.5 pl-3 pr-5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200/60 dark:divide-neutral-800/60 text-sm">
               {properties.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-neutral-400">
+                  <td colSpan={7} className="py-12 text-center text-neutral-400">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <svg className="w-8 h-8 text-neutral-300 dark:text-neutral-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -392,12 +451,15 @@ export function PropertiesTable({
               ) : (
                 properties.map((prop) => {
                   const isUpdating = updatingId === prop.id;
+                  const isPropertyActive = prop.isActive !== false;
                   const thumb = prop.images?.[0] || '/images/placeholder-property.jpg';
 
                   return (
                     <tr
                       key={prop.id}
-                      className="hover:bg-neutral-50/70 dark:hover:bg-neutral-800/40 transition-colors"
+                      className={`hover:bg-neutral-50/70 dark:hover:bg-neutral-800/40 transition-colors ${
+                        !isPropertyActive ? 'opacity-70 bg-neutral-50/40 dark:bg-neutral-900/40' : ''
+                      }`}
                     >
                       {/* Property Thumbnail & Info */}
                       <td className="py-4 pl-5 pr-3 max-w-xs sm:max-w-sm">
@@ -407,7 +469,7 @@ export function PropertiesTable({
                             <img
                               src={thumb}
                               alt={prop.title}
-                              className="w-full h-full object-cover"
+                              className={`w-full h-full object-cover ${!isPropertyActive ? 'grayscale-50' : ''}`}
                               loading="lazy"
                             />
                             {prop.badge && (
@@ -465,16 +527,32 @@ export function PropertiesTable({
                         <div className="text-[11px] text-neutral-500 mt-0.5">{prop.specs.areaSqMeters} m² ({Math.round(prop.specs.areaSqMeters * 10.764)} sq ft)</div>
                       </td>
 
+                      {/* Active Status Badge */}
+                      <td className="px-3 py-4 whitespace-nowrap text-center">
+                        {isPropertyActive ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            Active
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400 border border-neutral-200 dark:border-neutral-700">
+                            <span className="w-1.5 h-1.5 rounded-full bg-neutral-400" />
+                            Deactivated
+                          </span>
+                        )}
+                      </td>
+
                       {/* Featured Status Toggle */}
                       <td className="px-3 py-4 whitespace-nowrap text-center">
                         <button
                           type="button"
-                          disabled={isUpdating}
+                          disabled={isUpdating || !isPropertyActive}
                           onClick={() => handleToggleFeatured(prop)}
                           className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#006655] ${
                             prop.isFeatured ? 'bg-amber-500' : 'bg-neutral-300 dark:bg-neutral-700'
-                          } ${isUpdating ? 'opacity-50 cursor-wait' : ''}`}
+                          } ${isUpdating || !isPropertyActive ? 'opacity-50 cursor-not-allowed' : ''}`}
                           aria-label={`Toggle featured for ${prop.title}`}
+                          title={!isPropertyActive ? 'Activate property to feature it' : 'Toggle featured'}
                         >
                           <span
                             className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
@@ -487,7 +565,7 @@ export function PropertiesTable({
                         </div>
                       </td>
 
-                      {/* Actions: Edit, Preview, Delete */}
+                      {/* Actions: Edit, Preview, Deactivate / Reactivate */}
                       <td className="py-4 pl-3 pr-5 whitespace-nowrap text-right text-xs">
                         <div className="inline-flex items-center gap-1.5">
                           {/* Edit Button */}
@@ -507,7 +585,7 @@ export function PropertiesTable({
                             href={`/properties/${prop.slug}`}
                             target="_blank"
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg font-medium text-neutral-700 dark:text-neutral-300 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 transition-colors"
-                            title="View Public Page"
+                            title="View Property Page"
                           >
                             <span>Preview</span>
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -515,17 +593,40 @@ export function PropertiesTable({
                             </svg>
                           </Link>
 
-                          {/* Delete Button */}
-                          <button
-                            type="button"
-                            onClick={() => setDeleteTarget(prop)}
-                            className="inline-flex items-center p-1.5 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
-                            title="Delete Listing"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
+                          {/* Deactivate / Reactivate Button */}
+                          {isPropertyActive ? (
+                            <button
+                              type="button"
+                              onClick={() => setDeactivateTarget(prop)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg font-medium text-amber-700 dark:text-amber-300 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/60 transition-colors cursor-pointer"
+                              title="Deactivate Listing"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                              </svg>
+                              <span>Deactivate</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={isUpdating}
+                              onClick={() => handleReactivate(prop)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 transition-colors cursor-pointer"
+                              title="Reactivate Listing"
+                            >
+                              {isUpdating ? (
+                                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                                </svg>
+                              ) : (
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                              <span>Reactivate</span>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -552,43 +653,43 @@ export function PropertiesTable({
         )}
       </div>
 
-      {/* Delete Confirmation Modal */}
-      {deleteTarget && (
+      {/* Deactivate Confirmation Modal */}
+      {deactivateTarget && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center">
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
             </div>
             <div>
-              <h3 className="text-lg font-bold text-neutral-900 dark:text-white">Delete Property Listing?</h3>
+              <h3 className="text-lg font-bold text-neutral-900 dark:text-white">Deactivate Property Listing?</h3>
               <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-                Are you sure you want to delete <strong className="text-neutral-900 dark:text-white">{deleteTarget.title}</strong>? This action cannot be undone.
+                Are you sure you want to deactivate <strong className="text-neutral-900 dark:text-white">{deactivateTarget.title}</strong>? It will be hidden from public search, category filters, and featured showcases. You can reactivate it at any time.
               </p>
             </div>
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
-                disabled={isDeleting}
-                onClick={() => setDeleteTarget(null)}
+                disabled={isDeactivating}
+                onClick={() => setDeactivateTarget(null)}
                 className="px-4 py-2 text-sm font-medium rounded-xl text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                disabled={isDeleting}
-                onClick={handleConfirmDelete}
-                className="px-4 py-2 text-sm font-semibold rounded-xl bg-red-600 hover:bg-red-700 text-white transition-colors flex items-center gap-1.5 cursor-pointer"
+                disabled={isDeactivating}
+                onClick={handleConfirmDeactivate}
+                className="px-4 py-2 text-sm font-semibold rounded-xl bg-amber-600 hover:bg-amber-700 text-white transition-colors flex items-center gap-1.5 cursor-pointer"
               >
-                {isDeleting && (
+                {isDeactivating && (
                   <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                   </svg>
                 )}
-                <span>{isDeleting ? 'Deleting...' : 'Confirm Delete'}</span>
+                <span>{isDeactivating ? 'Deactivating...' : 'Confirm Deactivation'}</span>
               </button>
             </div>
           </div>
@@ -597,4 +698,5 @@ export function PropertiesTable({
     </div>
   );
 }
+
 

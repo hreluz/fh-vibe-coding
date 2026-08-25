@@ -25,7 +25,7 @@ export default async function EditPropertyPage(props: EditPropertyPageProps) {
   }
 
   const { id } = await props.params;
-  const property = await getPropertyById(id);
+  const property = await getPropertyById(id, { includeInactive: true });
 
   if (!property) {
     notFound();

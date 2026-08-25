@@ -2,6 +2,7 @@ import {
   CategoryFilterType,
   ListingFilterType,
   Property,
+  PropertyStatusFilter,
 } from '@/types/property';
 
 /**
@@ -13,6 +14,8 @@ export function matchesPropertyFilters(
   filters: {
     category?: CategoryFilterType;
     listingType?: ListingFilterType;
+    status?: PropertyStatusFilter;
+    isActive?: boolean;
     query?: string;
     location?: string;
     minPrice?: number;
@@ -22,6 +25,20 @@ export function matchesPropertyFilters(
     amenities?: string[];
   }
 ): boolean {
+  const propIsActive = prop.isActive !== false;
+
+  if (filters.isActive !== undefined && propIsActive !== filters.isActive) {
+    return false;
+  }
+
+  if (filters.status === 'active' && !propIsActive) {
+    return false;
+  }
+
+  if (filters.status === 'inactive' && propIsActive) {
+    return false;
+  }
+
   if (filters.category && filters.category !== 'all' && prop.category !== filters.category) {
     return false;
   }

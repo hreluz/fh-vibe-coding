@@ -10,6 +10,7 @@ import {
   PropertyFeatures,
 } from '@/components/property-detail';
 import { getPropertyBySlug, getAllPropertySlugs } from '@/lib/services/properties';
+import { getCurrentUserRole } from '@/lib/services/roles';
 import { COOKIE_NAME, DEFAULT_LOCALE } from '@/lib/i18n/config';
 import { getTranslation, Locale } from '@/lib/i18n';
 
@@ -19,6 +20,8 @@ interface PropertyDetailPageProps {
   }>;
 }
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Dynamic SEO metadata generation based on the property details.
  */
@@ -26,7 +29,7 @@ export async function generateMetadata(
   props: PropertyDetailPageProps
 ): Promise<Metadata> {
   const params = await props.params;
-  const property = await getPropertyBySlug(params.slug);
+  const property = await getPropertyBySlug(params.slug, { includeInactive: true });
 
   if (!property) {
     return {
@@ -42,7 +45,8 @@ export async function generateMetadata(
   }).format(property.price);
 
   const priceSuffix = property.listingType === 'for_rent' ? '/mo' : '';
-  const pageTitle = `${property.title} - ${formattedPrice}${priceSuffix} | LuxeEstate`;
+  const isDeactivated = property.isActive === false;
+  const pageTitle = `${isDeactivated ? '[Deactivated] ' : ''}${property.title} - ${formattedPrice}${priceSuffix} | LuxeEstate`;
   const pageDescription =
     property.description?.slice(0, 160) ||
     `Explore ${property.title} in ${property.location.formatted}. Featuring ${property.specs.bedrooms} beds, ${property.specs.bathrooms} baths, and ${property.specs.areaSqMeters} m² of living space.`;
@@ -50,6 +54,7 @@ export async function generateMetadata(
   return {
     title: pageTitle,
     description: pageDescription,
+    robots: isDeactivated ? { index: false, follow: false } : undefined,
     openGraph: {
       title: pageTitle,
       description: pageDescription,
@@ -76,9 +81,14 @@ export async function generateStaticParams() {
 
 export default async function PropertyDetailPage(props: PropertyDetailPageProps) {
   const params = await props.params;
-  const property = await getPropertyBySlug(params.slug);
+  const { isAdmin } = await getCurrentUserRole();
+  const property = await getPropertyBySlug(params.slug, { includeInactive: isAdmin });
 
   if (!property) {
+    notFound();
+  }
+
+  if (property.isActive === false && !isAdmin) {
     notFound();
   }
 
@@ -98,7 +108,7 @@ export default async function PropertyDetailPage(props: PropertyDetailPageProps)
       '@type': 'Offer',
       price: property.price,
       priceCurrency: 'USD',
-      availability: 'https://schema.org/InStock',
+      availability: property.isActive === false ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
     },
     address: {
       '@type': 'PostalAddress',
@@ -137,6 +147,30 @@ export default async function PropertyDetailPage(props: PropertyDetailPageProps)
       <Navbar activeTab={activeNavTab} />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {/* Deactivated Listing Admin Preview Banner */}
+        {property.isActive === false && (
+          <div className="mb-6 p-4 rounded-2xl bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/30 text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-400">
+                <span className="material-icons text-xl">visibility_off</span>
+              </div>
+              <div>
+                <p className="text-sm font-bold">Administrator Preview: Listing Deactivated</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  This property is deactivated and hidden from public search, category filters, and featured showcases.
+                </p>
+              </div>
+            </div>
+            <Link
+              href={`/admin/properties/${property.id}/edit`}
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold shadow-xs transition-colors self-start sm:self-auto shrink-0"
+            >
+              <span className="material-icons text-sm">edit</span>
+              <span>Edit in Admin</span>
+            </Link>
+          </div>
+        )}
+
         {/* Breadcrumb Navigation */}
         <nav
           aria-label="Breadcrumb"

@@ -42,6 +42,7 @@ async function seed() {
     images: prop.images,
     badge: prop.badge || null,
     is_featured: Boolean(prop.isFeatured),
+    is_active: prop.isActive !== false,
     description: prop.description || null,
     latitude: prop.coordinates?.lat || null,
     longitude: prop.coordinates?.lng || null,

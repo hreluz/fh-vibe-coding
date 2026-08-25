@@ -44,6 +44,7 @@ export interface Property {
   images: string[];
   badge?: PropertyBadge;
   isFeatured?: boolean;
+  isActive?: boolean;
   description?: string;
   amenities?: string[];
   coordinates?: PropertyCoordinates;
@@ -53,6 +54,7 @@ export interface Property {
 
 export type CategoryFilterType = 'all' | PropertyCategory;
 export type ListingFilterType = 'all' | ListingType;
+export type PropertyStatusFilter = 'all' | 'active' | 'inactive';
 
 export interface PropertyFilterValues {
   location?: string;
@@ -60,9 +62,12 @@ export interface PropertyFilterValues {
   maxPrice?: number;
   category?: CategoryFilterType;
   listingType?: ListingFilterType;
+  status?: PropertyStatusFilter;
+  isActive?: boolean;
   bedrooms?: number;
   bathrooms?: number;
   amenities?: string[];
   query?: string;
 }
+
 

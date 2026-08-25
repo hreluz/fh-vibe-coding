@@ -17,7 +17,7 @@ export async function GET(
       return NextResponse.json({ error: 'Property ID is required' }, { status: 400 });
     }
 
-    const property = await getPropertyById(id);
+    const property = await getPropertyById(id, { includeInactive: true });
     if (!property) {
       return NextResponse.json({ error: 'Property not found' }, { status: 404 });
     }
@@ -63,6 +63,8 @@ export async function PUT(
       images,
       badge,
       isFeatured,
+      isActive,
+      is_active,
       description,
       amenities,
       latitude,
@@ -96,6 +98,8 @@ export async function PUT(
     if (images !== undefined && Array.isArray(images)) updatePayload.images = images;
     if (badge !== undefined) updatePayload.badge = badge || null;
     if (isFeatured !== undefined) updatePayload.is_featured = Boolean(isFeatured);
+    if (isActive !== undefined) updatePayload.is_active = Boolean(isActive);
+    if (is_active !== undefined) updatePayload.is_active = Boolean(is_active);
     if (description !== undefined) updatePayload.description = description?.trim() || null;
     if (amenities !== undefined && Array.isArray(amenities)) updatePayload.amenities = amenities;
     if (latitude !== undefined) {
