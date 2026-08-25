@@ -15,6 +15,7 @@ export interface PropertySpecs {
   bathrooms: number;
   areaSqMeters: number;
   garage?: number;
+  yearBuilt?: number;
 }
 
 export interface PropertyAgent {

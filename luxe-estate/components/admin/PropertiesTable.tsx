@@ -37,6 +37,8 @@ export function PropertiesTable({
   const [searchQuery, setSearchQuery] = useState(filters.query);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Property | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Sync state with prop change during render
   if (filters.query !== prevQuery) {
@@ -171,6 +173,32 @@ export function PropertiesTable({
     }
   };
 
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/admin/properties/${deleteTarget.id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to delete property');
+      }
+
+      showToast(`Property "${deleteTarget.title}" was deleted.`, 'success');
+      setDeleteTarget(null);
+      if (onStatsRefresh) onStatsRefresh();
+      startTransition(() => {
+        router.refresh();
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete property';
+      showToast(msg, 'error');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -295,6 +323,16 @@ export function PropertiesTable({
                 <option value={50} className="bg-white dark:bg-neutral-800">50</option>
               </select>
             </div>
+            {/* Add Property Button */}
+            <Link
+              href="/admin/properties/new"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-[#006655] hover:bg-[#19322F] dark:bg-[#06f9d0] dark:text-neutral-950 dark:hover:bg-[#006655] dark:hover:text-white text-white shadow-xs transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Add Property</span>
+            </Link>
 
             {/* Results count badge */}
             <div className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-neutral-600 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800/80 rounded-xl">
@@ -318,30 +356,36 @@ export function PropertiesTable({
       <div className="bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 rounded-2xl overflow-hidden shadow-xs relative">
         {/* Loading Progress Bar */}
         {isPending && (
-          <div className="absolute top-0 left-0 right-0 h-1 bg-neutral-200 dark:bg-neutral-800 overflow-hidden z-10">
-            <div className="h-full bg-[#006655] dark:bg-[#06f9d0] animate-pulse w-full" />
-          </div>
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-emerald-500 animate-pulse z-10" />
         )}
 
-        <div className={`overflow-x-auto transition-opacity duration-200 ${isPending ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
-          <table className="w-full text-left text-sm">
-            <thead className="bg-neutral-50 dark:bg-neutral-800/60 border-b border-neutral-200/80 dark:border-neutral-800 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-              <tr>
-                <th scope="col" className="py-3.5 pl-5 pr-3">Property</th>
-                <th scope="col" className="px-3 py-3.5">Category & Type</th>
-                <th scope="col" className="px-3 py-3.5">Price</th>
-                <th scope="col" className="px-3 py-3.5">Specs</th>
-                <th scope="col" className="px-3 py-3.5 text-center">Featured</th>
-                <th scope="col" className="py-3.5 pl-3 pr-5 text-right">Actions</th>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-neutral-200/80 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50 text-[11px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+                <th className="py-3.5 pl-5 pr-3">Property</th>
+                <th className="px-3 py-3.5">Category & Type</th>
+                <th className="px-3 py-3.5">Price</th>
+                <th className="px-3 py-3.5">Specs</th>
+                <th className="px-3 py-3.5 text-center">Featured Status</th>
+                <th className="py-3.5 pl-3 pr-5 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-200/70 dark:divide-neutral-800">
+            <tbody className="divide-y divide-neutral-200/60 dark:divide-neutral-800/60 text-sm">
               {properties.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-neutral-500 dark:text-neutral-400">
-                    <div className="max-w-xs mx-auto">
-                      <p className="font-semibold text-neutral-800 dark:text-neutral-200">No properties found</p>
-                      <p className="text-xs mt-1">Try adjusting your search query or filter settings.</p>
+                  <td colSpan={6} className="py-12 text-center text-neutral-400">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <svg className="w-8 h-8 text-neutral-300 dark:text-neutral-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                      <p className="text-sm font-medium">No properties match your filter criteria.</p>
+                      <Link
+                        href="/admin/properties/new"
+                        className="mt-2 text-xs font-semibold text-[#006655] dark:text-[#06f9d0] hover:underline"
+                      >
+                        + Create a new listing
+                      </Link>
                     </div>
                   </td>
                 </tr>
@@ -443,18 +487,46 @@ export function PropertiesTable({
                         </div>
                       </td>
 
-                      {/* Actions */}
+                      {/* Actions: Edit, Preview, Delete */}
                       <td className="py-4 pl-3 pr-5 whitespace-nowrap text-right text-xs">
-                        <Link
-                          href={`/properties/${prop.slug}`}
-                          target="_blank"
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg font-medium text-neutral-700 dark:text-neutral-300 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 transition-colors"
-                        >
-                          <span>Preview</span>
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                        </Link>
+                        <div className="inline-flex items-center gap-1.5">
+                          {/* Edit Button */}
+                          <Link
+                            href={`/admin/properties/${prop.id}/edit`}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg font-medium text-[#006655] dark:text-[#06f9d0] bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 transition-colors"
+                            title="Edit Listing"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            <span>Edit</span>
+                          </Link>
+
+                          {/* Preview Link */}
+                          <Link
+                            href={`/properties/${prop.slug}`}
+                            target="_blank"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg font-medium text-neutral-700 dark:text-neutral-300 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 transition-colors"
+                            title="View Public Page"
+                          >
+                            <span>Preview</span>
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                          </Link>
+
+                          {/* Delete Button */}
+                          <button
+                            type="button"
+                            onClick={() => setDeleteTarget(prop)}
+                            className="inline-flex items-center p-1.5 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                            title="Delete Listing"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -479,6 +551,49 @@ export function PropertiesTable({
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 flex items-center justify-center">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-neutral-900 dark:text-white">Delete Property Listing?</h3>
+              <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
+                Are you sure you want to delete <strong className="text-neutral-900 dark:text-white">{deleteTarget.title}</strong>? This action cannot be undone.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setDeleteTarget(null)}
+                className="px-4 py-2 text-sm font-medium rounded-xl text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 text-sm font-semibold rounded-xl bg-red-600 hover:bg-red-700 text-white transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                {isDeleting && (
+                  <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                )}
+                <span>{isDeleting ? 'Deleting...' : 'Confirm Delete'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

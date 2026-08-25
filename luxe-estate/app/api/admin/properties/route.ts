@@ -68,3 +68,85 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const { isAdmin } = await getCurrentUserRole();
+    if (!isAdmin) {
+      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const {
+      title,
+      price,
+      listingType,
+      category,
+      address,
+      city,
+      state,
+      country,
+      locationFormatted,
+      bedrooms,
+      bathrooms,
+      areaSqMeters,
+      garage,
+      yearBuilt,
+      images,
+      badge,
+      isFeatured,
+      description,
+      amenities,
+      latitude,
+      longitude,
+      slug,
+    } = body;
+
+    if (!title || price === undefined || !listingType || !category) {
+      return NextResponse.json(
+        { error: 'Title, price, listingType, and category are required' },
+        { status: 400 }
+      );
+    }
+
+    const { createProperty } = await import('@/lib/services/properties');
+
+    const result = await createProperty({
+      title: title.trim(),
+      slug: slug?.trim() || undefined,
+      price: Number(price),
+      listing_type: listingType,
+      category,
+      address: address?.trim() || '',
+      city: city?.trim() || '',
+      state: state?.trim() || null,
+      country: country?.trim() || null,
+      location_formatted:
+        locationFormatted?.trim() ||
+        [address, city, state, country].filter(Boolean).join(', ') ||
+        'Location not specified',
+      bedrooms: bedrooms !== undefined ? Number(bedrooms) : 1,
+      bathrooms: bathrooms !== undefined ? Number(bathrooms) : 1,
+      area_sq_meters: areaSqMeters !== undefined ? Number(areaSqMeters) : 0,
+      garage: garage !== undefined ? Number(garage) : 0,
+      year_built: yearBuilt !== undefined && yearBuilt !== null && !isNaN(Number(yearBuilt)) ? Number(yearBuilt) : null,
+      images: Array.isArray(images) ? images : [],
+      badge: badge || null,
+      is_featured: Boolean(isFeatured),
+      description: description?.trim() || null,
+      amenities: Array.isArray(amenities) ? amenities : [],
+      latitude: latitude !== undefined && latitude !== null && !isNaN(Number(latitude)) ? Number(latitude) : null,
+      longitude: longitude !== undefined && longitude !== null && !isNaN(Number(longitude)) ? Number(longitude) : null,
+    });
+
+    if (!result.success) {
+      return NextResponse.json({ error: result.error || 'Failed to create property' }, { status: 400 });
+    }
+
+    return NextResponse.json({ success: true, property: result.property }, { status: 201 });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Failed to create property';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+

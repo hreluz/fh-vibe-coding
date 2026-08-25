@@ -1,5 +1,5 @@
-import { createServerClient } from '@/lib/supabase/server';
-import { PropertyRow } from '@/types/database';
+import { createServerClient, createAdminClient } from '@/lib/supabase/server';
+import { PropertyRow, PropertyInsert, PropertyUpdate } from '@/types/database';
 import {
   CategoryFilterType,
   ListingFilterType,
@@ -123,6 +123,10 @@ export function mapPropertyRow(row: PropertyRow): Property {
         row.garage !== null && row.garage !== undefined
           ? Number(row.garage)
           : mockFallback?.specs.garage ?? 1,
+      yearBuilt:
+        row.year_built !== null && row.year_built !== undefined
+          ? Number(row.year_built)
+          : mockFallback?.specs.yearBuilt,
     },
     images,
     badge: (row.badge as PropertyBadge) || null,
@@ -438,4 +442,247 @@ export async function getFeaturedPaginatedProperties(
     isFeatured: true,
   });
 }
+
+/**
+ * Fetches a single property by its unique ID.
+ */
+export async function getPropertyById(id: string): Promise<Property | null> {
+  const { isConfigured } = getSupabaseEnv();
+
+  if (!isConfigured) {
+    return ALL_PROPERTIES.find((p) => p.id === id) || null;
+  }
+
+  try {
+    const supabase = createServerClient();
+    const { data, error } = await supabase
+      .from('properties')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error || !data) {
+      // Fallback to mock data if not in DB
+      return ALL_PROPERTIES.find((p) => p.id === id) || null;
+    }
+
+    return mapPropertyRow(data);
+  } catch (err) {
+    console.error('Error in getPropertyById:', err);
+    return ALL_PROPERTIES.find((p) => p.id === id) || null;
+  }
+}
+
+/**
+ * Helper to generate a URL-safe unique slug from a property title.
+ */
+export async function generateUniqueSlug(title: string, currentId?: string): Promise<string> {
+  const base = title
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_-]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'property';
+
+  const { isConfigured } = getSupabaseEnv();
+  if (!isConfigured) {
+    let candidate = base;
+    let counter = 1;
+    while (ALL_PROPERTIES.some((p) => p.slug === candidate && p.id !== currentId)) {
+      candidate = `${base}-${counter}`;
+      counter++;
+    }
+    return candidate;
+  }
+
+  try {
+    const supabase = createServerClient();
+    let candidate = base;
+    let counter = 1;
+    let isUnique = false;
+
+    while (!isUnique && counter <= 50) {
+      let query = supabase.from('properties').select('id').eq('slug', candidate);
+      if (currentId) {
+        query = query.neq('id', currentId);
+      }
+      const { data } = await query.maybeSingle();
+      if (!data) {
+        isUnique = true;
+      } else {
+        candidate = `${base}-${counter}`;
+        counter++;
+      }
+    }
+
+    return isUnique ? candidate : `${base}-${Date.now().toString(36)}`;
+  } catch (err) {
+    console.error('Error generating unique slug:', err);
+    return `${base}-${Date.now().toString(36)}`;
+  }
+}
+
+/**
+ * Creates a new property listing in Supabase.
+ */
+export async function createProperty(
+  input: PropertyInsert
+): Promise<{ success: boolean; property?: Property; error?: string }> {
+  const { isConfigured } = getSupabaseEnv();
+
+  // Validate required fields
+  if (!input.title || !input.price || !input.category || !input.listing_type) {
+    return { success: false, error: 'Missing required property fields (title, price, category, listing_type)' };
+  }
+
+  const slug = input.slug || (await generateUniqueSlug(input.title));
+  const locationFormatted =
+    input.location_formatted ||
+    [input.address, input.city, input.state, input.country].filter(Boolean).join(', ') ||
+    'Location not specified';
+
+  const insertData: PropertyInsert = {
+    ...input,
+    slug,
+    location_formatted: locationFormatted,
+    created_at: new Date().toISOString(),
+  };
+
+  if (!isConfigured) {
+    // Demo / fallback mode
+    const fakeId = `prop-${Date.now()}`;
+    const newProp: Property = {
+      id: fakeId,
+      title: insertData.title || '',
+      slug,
+      price: Number(insertData.price),
+      listingType: insertData.listing_type as ListingType,
+      category: insertData.category as PropertyCategory,
+      location: {
+        address: insertData.address || '',
+        city: insertData.city || '',
+        state: insertData.state || undefined,
+        country: insertData.country || undefined,
+        formatted: locationFormatted,
+      },
+      specs: {
+        bedrooms: insertData.bedrooms || 1,
+        bathrooms: insertData.bathrooms || 1,
+        areaSqMeters: insertData.area_sq_meters || 100,
+        garage: insertData.garage || 0,
+        yearBuilt: insertData.year_built || undefined,
+      },
+      images: insertData.images || ['https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80'],
+      badge: (insertData.badge as PropertyBadge) || null,
+      isFeatured: insertData.is_featured || false,
+      description: insertData.description || undefined,
+      amenities: insertData.amenities || [],
+      coordinates:
+        insertData.latitude && insertData.longitude
+          ? { lat: Number(insertData.latitude), lng: Number(insertData.longitude) }
+          : { lat: 34.0736, lng: -118.4004 },
+      agent: DEFAULT_AGENT,
+      createdAt: insertData.created_at || new Date().toISOString(),
+    };
+    return { success: true, property: newProp };
+  }
+
+  try {
+    const adminClient = createAdminClient();
+    const supabase = adminClient || createServerClient();
+
+    const { data, error } = await supabase
+      .from('properties')
+      .insert(insertData)
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('Error inserting property:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, property: mapPropertyRow(data) };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Failed to create property';
+    console.error('Exception in createProperty:', message);
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Updates an existing property listing in Supabase.
+ */
+export async function updateProperty(
+  id: string,
+  input: PropertyUpdate
+): Promise<{ success: boolean; property?: Property; error?: string }> {
+  const { isConfigured } = getSupabaseEnv();
+
+  if (!isConfigured) {
+    return { success: true };
+  }
+
+  try {
+    const adminClient = createAdminClient();
+    const supabase = adminClient || createServerClient();
+
+    // Auto-update formatted location if address fields changed
+    const updateData: PropertyUpdate = { ...input };
+    if (input.address !== undefined || input.city !== undefined || input.state !== undefined || input.country !== undefined) {
+      const parts = [input.address, input.city, input.state, input.country].filter(Boolean);
+      if (parts.length > 0) {
+        updateData.location_formatted = parts.join(', ');
+      }
+    }
+
+    const { data, error } = await supabase
+      .from('properties')
+      .update(updateData)
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('Error updating property:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, property: mapPropertyRow(data) };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Failed to update property';
+    console.error('Exception in updateProperty:', message);
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Deletes a property listing in Supabase.
+ */
+export async function deleteProperty(id: string): Promise<{ success: boolean; error?: string }> {
+  const { isConfigured } = getSupabaseEnv();
+
+  if (!isConfigured) {
+    return { success: true };
+  }
+
+  try {
+    const adminClient = createAdminClient();
+    const supabase = adminClient || createServerClient();
+
+    const { error } = await supabase.from('properties').delete().eq('id', id);
+
+    if (error) {
+      console.error('Error deleting property:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Failed to delete property';
+    console.error('Exception in deleteProperty:', message);
+    return { success: false, error: message };
+  }
+}
+
 

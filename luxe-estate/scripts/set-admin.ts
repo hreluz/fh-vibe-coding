@@ -65,7 +65,7 @@ async function main() {
   console.log(`🔍 Looking for user matching "${emailOrId}"...`);
 
   // First try finding in user_roles by email or user_id
-  let isUserId = emailOrId.includes('-') && emailOrId.length > 20;
+  const isUserId = emailOrId.includes('-') && emailOrId.length > 20;
   let query = supabase.from('user_roles').select('*');
   if (isUserId) {
     query = query.or(`user_id.eq.${emailOrId},id.eq.${emailOrId},email.eq.${emailOrId}`);

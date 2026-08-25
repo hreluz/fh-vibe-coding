@@ -1,0 +1,8 @@
+/grill-me
+
+Let's to and prepare the screen for creating and editing properties
+
+- Let's follow the exact same design on @code.html that already has the classes and the structure necessary
+- If there are fields in the forms, add them
+- Add a navigation between the properties page on the admin panel to add or edit when is needed
+- Let's use a bucket on supabase for loading the images

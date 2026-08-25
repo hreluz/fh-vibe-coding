@@ -37,6 +37,7 @@ export type Database = {
           state: string | null;
           title: string;
           amenities: string[] | null;
+          year_built: number | null;
         };
         Insert: {
           address?: string;
@@ -63,6 +64,7 @@ export type Database = {
           state?: string | null;
           title: string;
           amenities?: string[] | null;
+          year_built?: number | null;
         };
         Update: {
           address?: string;
@@ -89,6 +91,7 @@ export type Database = {
           state?: string | null;
           title?: string;
           amenities?: string[] | null;
+          year_built?: number | null;
         };
         Relationships: [];
       };
