@@ -14,8 +14,15 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get('query') || undefined;
     const category = (searchParams.get('category') as CategoryFilterType) || 'all';
     const listingType = (searchParams.get('listingType') as ListingFilterType) || 'all';
+    const featuredParam = searchParams.get('featured') || 'all';
+    const isFeatured =
+      featuredParam === 'featured_only'
+        ? true
+        : featuredParam === 'standard_only'
+        ? false
+        : undefined;
     const page = parseInt(searchParams.get('page') || '1', 10);
-    const pageSize = parseInt(searchParams.get('pageSize') || '50', 10);
+    const pageSize = parseInt(searchParams.get('pageSize') || '10', 10);
 
     const data = await getPaginatedProperties({
       page,
@@ -23,6 +30,7 @@ export async function GET(request: NextRequest) {
       query,
       category,
       listingType,
+      isFeatured,
     });
 
     return NextResponse.json(data);

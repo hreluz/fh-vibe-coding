@@ -290,13 +290,15 @@ export async function getPaginatedProperties({
   bedrooms,
   bathrooms,
   amenities,
-  isFeatured = false,
+  isFeatured,
 }: GetPaginatedPropertiesOptions = {}): Promise<PaginatedPropertiesResult> {
   const currentPage = Math.max(1, page);
   const { isConfigured } = getSupabaseEnv();
 
   if (!isConfigured) {
-    let list = ALL_PROPERTIES.filter((p) => (isFeatured ? p.isFeatured : !p.isFeatured));
+    let list = isFeatured !== undefined
+      ? ALL_PROPERTIES.filter((p) => (isFeatured ? p.isFeatured : !p.isFeatured))
+      : ALL_PROPERTIES;
 
     list = list.filter((p) =>
       matchesPropertyFilters(p, {

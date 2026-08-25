@@ -83,6 +83,7 @@ export default async function Home(props: HomePageProps) {
     getPaginatedProperties({
       page,
       pageSize: 8,
+      isFeatured: false,
       ...filterOptions,
     }),
   ]);

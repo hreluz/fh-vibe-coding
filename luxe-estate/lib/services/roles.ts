@@ -89,6 +89,96 @@ export async function getCurrentUserRole(): Promise<CurrentUserRoleResult> {
   }
 }
 
+export interface GetPaginatedUserRolesOptions {
+  page?: number;
+  pageSize?: number;
+  query?: string;
+  role?: 'all' | 'admin' | 'user';
+}
+
+export interface PaginatedUsersResult {
+  users: UserRoleRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  hasPrevPage: boolean;
+  hasNextPage: boolean;
+}
+
+/**
+ * Lists registered users with server-side pagination, search, and role filtering.
+ * Requires admin privileges.
+ */
+export async function getPaginatedUserRoles({
+  page = 1,
+  pageSize = 10,
+  query = '',
+  role = 'all',
+}: GetPaginatedUserRolesOptions = {}): Promise<PaginatedUsersResult> {
+  const currentPage = Math.max(1, page);
+  const from = (currentPage - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  try {
+    const adminClient = createAdminClient();
+    const client = adminClient || (await createServerSupabaseClient());
+
+    let dbQuery = client.from('user_roles').select('*', { count: 'exact' });
+
+    if (role && role !== 'all') {
+      dbQuery = dbQuery.eq('role', role);
+    }
+
+    if (query && query.trim() !== '') {
+      const term = query.trim();
+      dbQuery = dbQuery.or(`email.ilike.%${term}%,full_name.ilike.%${term}%`);
+    }
+
+    dbQuery = dbQuery.order('created_at', { ascending: false }).range(from, to);
+
+    const { data, count, error } = await dbQuery;
+
+    if (error) {
+      console.error('getPaginatedUserRoles error:', error.message);
+      return {
+        users: [],
+        total: 0,
+        page: currentPage,
+        pageSize,
+        totalPages: 0,
+        hasPrevPage: false,
+        hasNextPage: false,
+      };
+    }
+
+    const users = data || [];
+    const total = count || users.length;
+    const totalPages = Math.ceil(total / pageSize);
+
+    return {
+      users,
+      total,
+      page: currentPage,
+      pageSize,
+      totalPages,
+      hasPrevPage: currentPage > 1,
+      hasNextPage: currentPage < totalPages,
+    };
+  } catch (err) {
+    console.error('getPaginatedUserRoles exception:', err);
+    return {
+      users: [],
+      total: 0,
+      page: currentPage,
+      pageSize,
+      totalPages: 0,
+      hasPrevPage: false,
+      hasNextPage: false,
+    };
+  }
+}
+
 /**
  * Lists all registered users and their roles for the Admin panel.
  * Requires admin privileges.

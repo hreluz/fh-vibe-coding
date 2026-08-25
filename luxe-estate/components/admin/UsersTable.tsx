@@ -1,23 +1,56 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useTransition, useCallback } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { UserRoleRow, UserRole } from '@/types/database';
+import { PaginatedUsersResult } from '@/lib/services/roles';
 import { useAuth } from '@/components/providers';
+import { Pagination } from '@/components/ui';
+
+export interface AdminUsersFilters {
+  page: number;
+  pageSize: number;
+  query: string;
+  role: 'all' | 'admin' | 'user';
+}
 
 interface UsersTableProps {
-  initialUsers: UserRoleRow[];
+  usersResult: PaginatedUsersResult;
+  filters: AdminUsersFilters;
   currentUserId: string | null;
   onStatsRefresh?: () => void;
 }
 
-export function UsersTable({ initialUsers, currentUserId, onStatsRefresh }: UsersTableProps) {
+export function UsersTable({
+  usersResult,
+  filters,
+  currentUserId,
+  onStatsRefresh,
+}: UsersTableProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { user: authUser, refreshRole } = useAuth();
-  const [users, setUsers] = useState<UserRoleRow[]>(initialUsers);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'user'>('all');
+  const [isPending, startTransition] = useTransition();
+
+  const [optimisticRoles, setOptimisticRoles] = useState<Record<string, UserRole>>({});
+  const [prevQuery, setPrevQuery] = useState(filters.query);
+  const [searchQuery, setSearchQuery] = useState(filters.query);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Sync search input with prop changes during render
+  if (filters.query !== prevQuery) {
+    setPrevQuery(filters.query);
+    setSearchQuery(filters.query);
+  }
+
+  const users = usersResult.users.map((u) => {
+    if (optimisticRoles[u.user_id] !== undefined) {
+      return { ...u, role: optimisticRoles[u.user_id] };
+    }
+    return u;
+  });
 
   const showToast = (text: string, type: 'success' | 'error') => {
     setToastMessage({ text, type });
@@ -26,23 +59,78 @@ export function UsersTable({ initialUsers, currentUserId, onStatsRefresh }: User
     }, 4000);
   };
 
-  const handleRefresh = async () => {
-    try {
-      setIsRefreshing(true);
-      const res = await fetch('/api/admin/roles');
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to refresh users list');
+  const buildUrl = useCallback(
+    (overrides: Partial<AdminUsersFilters>) => {
+      const newFilters = {
+        ...filters,
+        ...overrides,
+      };
+
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('tab', 'users');
+
+      if (newFilters.page && newFilters.page > 1) {
+        params.set('page', newFilters.page.toString());
+      } else {
+        params.delete('page');
       }
-      setUsers(data.users || []);
-      showToast('User list refreshed successfully', 'success');
-      if (onStatsRefresh) onStatsRefresh();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to refresh users';
-      showToast(msg, 'error');
-    } finally {
-      setIsRefreshing(false);
-    }
+
+      if (newFilters.pageSize && newFilters.pageSize !== 10) {
+        params.set('pageSize', newFilters.pageSize.toString());
+      } else {
+        params.delete('pageSize');
+      }
+
+      if (newFilters.query && newFilters.query.trim()) {
+        params.set('query', newFilters.query.trim());
+      } else {
+        params.delete('query');
+      }
+
+      if (newFilters.role && newFilters.role !== 'all') {
+        params.set('role', newFilters.role);
+      } else {
+        params.delete('role');
+      }
+
+      // Remove property-specific filters
+      params.delete('category');
+      params.delete('listingType');
+      params.delete('featured');
+
+      const qs = params.toString();
+      return qs ? `${pathname}?${qs}` : pathname;
+    },
+    [filters, pathname, searchParams]
+  );
+
+  const applyFilters = useCallback(
+    (overrides: Partial<AdminUsersFilters>) => {
+      const nextUrl = buildUrl(overrides);
+      startTransition(() => {
+        router.push(nextUrl);
+      });
+    },
+    [buildUrl, router]
+  );
+
+  // Debounced search query update
+  React.useEffect(() => {
+    if (searchQuery === filters.query) return;
+
+    const timer = setTimeout(() => {
+      applyFilters({ query: searchQuery, page: 1 });
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, filters.query, applyFilters]);
+
+  const handleRefresh = () => {
+    startTransition(() => {
+      router.refresh();
+    });
+    showToast('User list refreshed successfully', 'success');
+    if (onStatsRefresh) onStatsRefresh();
   };
 
   const handleRoleChange = async (targetUser: UserRoleRow, newRole: UserRole) => {
@@ -54,12 +142,8 @@ export function UsersTable({ initialUsers, currentUserId, onStatsRefresh }: User
       return;
     }
 
-    const previousRole = targetUser.role;
-
     // Optimistic UI update
-    setUsers((prev) =>
-      prev.map((u) => (u.id === targetUser.id ? { ...u, role: newRole } : u))
-    );
+    setOptimisticRoles((prev) => ({ ...prev, [targetUser.user_id]: newRole }));
     setUpdatingUserId(targetUser.id);
 
     try {
@@ -88,35 +172,18 @@ export function UsersTable({ initialUsers, currentUserId, onStatsRefresh }: User
 
       if (onStatsRefresh) onStatsRefresh();
     } catch (err: unknown) {
-      // Revert optimistic update
-      setUsers((prev) =>
-        prev.map((u) => (u.id === targetUser.id ? { ...u, role: previousRole } : u))
-      );
+      // Revert optimistic update on failure
+      setOptimisticRoles((prev) => {
+        const next = { ...prev };
+        delete next[targetUser.user_id];
+        return next;
+      });
       const msg = err instanceof Error ? err.message : 'Failed to update role';
       showToast(msg, 'error');
     } finally {
       setUpdatingUserId(null);
     }
   };
-
-  const filteredUsers = useMemo(() => {
-    return users.filter((u) => {
-      // Search filter
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchesEmail = u.email.toLowerCase().includes(q);
-        const matchesName = (u.full_name || '').toLowerCase().includes(q);
-        if (!matchesEmail && !matchesName) return false;
-      }
-
-      // Role filter
-      if (roleFilter !== 'all' && u.role !== roleFilter) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [users, searchQuery, roleFilter]);
 
   const formatDate = (isoString: string) => {
     try {
@@ -129,6 +196,10 @@ export function UsersTable({ initialUsers, currentUserId, onStatsRefresh }: User
       return isoString;
     }
   };
+
+  const startItem =
+    usersResult.total === 0 ? 0 : (usersResult.page - 1) * usersResult.pageSize + 1;
+  const endItem = Math.min(usersResult.page * usersResult.pageSize, usersResult.total);
 
   return (
     <div className="space-y-4">
@@ -154,9 +225,9 @@ export function UsersTable({ initialUsers, currentUserId, onStatsRefresh }: User
         </div>
       )}
 
-      {/* Controls: Search, Filter, Refresh */}
+      {/* Controls: Search, Filter, Page Size, Refresh */}
       <div className="bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 rounded-2xl p-4 shadow-xs">
-        <div className="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center">
+        <div className="flex flex-col lg:flex-row gap-4 justify-between items-stretch lg:items-center">
           {/* Search Input */}
           <div className="relative flex-1 max-w-md">
             <svg
@@ -172,24 +243,29 @@ export function UsersTable({ initialUsers, currentUserId, onStatsRefresh }: User
               placeholder="Search user by name or email..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 text-sm bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#006655] dark:focus:ring-[#06f9d0] transition-all"
+              className="w-full pl-10 pr-8 py-2 text-sm bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#006655] dark:focus:ring-[#06f9d0] transition-all"
             />
             {searchQuery && (
               <button
                 type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 text-xs"
+                onClick={() => {
+                  setSearchQuery('');
+                  applyFilters({ query: '', page: 1 });
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 text-xs p-1"
+                aria-label="Clear search"
               >
                 ✕
               </button>
             )}
           </div>
 
-          {/* Filters & Refresh */}
-          <div className="flex items-center gap-2">
+          {/* Filters & Page Size & Refresh Button */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Role Filter */}
             <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value as 'all' | 'admin' | 'user')}
+              value={filters.role}
+              onChange={(e) => applyFilters({ role: e.target.value as 'all' | 'admin' | 'user', page: 1 })}
               className="px-3 py-2 text-xs font-medium bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-800 dark:text-neutral-200 focus:outline-none focus:ring-2 focus:ring-[#006655] cursor-pointer"
             >
               <option value="all">All Roles</option>
@@ -197,14 +273,29 @@ export function UsersTable({ initialUsers, currentUserId, onStatsRefresh }: User
               <option value="user">Standard Users Only</option>
             </select>
 
+            {/* Page Size Select */}
+            <div className="flex items-center gap-1.5 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl px-2 py-1">
+              <span className="text-[11px] font-medium text-neutral-500 dark:text-neutral-400 pl-1">Per page:</span>
+              <select
+                value={filters.pageSize}
+                onChange={(e) => applyFilters({ pageSize: Number(e.target.value), page: 1 })}
+                className="py-1 text-xs font-semibold bg-transparent text-neutral-800 dark:text-neutral-200 focus:outline-none cursor-pointer"
+              >
+                <option value={10} className="bg-white dark:bg-neutral-800">10</option>
+                <option value={25} className="bg-white dark:bg-neutral-800">25</option>
+                <option value={50} className="bg-white dark:bg-neutral-800">50</option>
+              </select>
+            </div>
+
+            {/* Refresh Button */}
             <button
               type="button"
               onClick={handleRefresh}
-              disabled={isRefreshing}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 transition-colors cursor-pointer disabled:opacity-50"
+              disabled={isPending}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-neutral-700 dark:text-neutral-300 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 rounded-xl transition-colors cursor-pointer"
             >
               <svg
-                className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`}
+                className={`w-3.5 h-3.5 ${isPending ? 'animate-spin text-[#006655] dark:text-[#06f9d0]' : ''}`}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -214,136 +305,155 @@ export function UsersTable({ initialUsers, currentUserId, onStatsRefresh }: User
               <span>Refresh</span>
             </button>
 
-            <div className="px-3 py-2 text-xs font-semibold text-neutral-500 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800/80 rounded-xl">
-              {filteredUsers.length} Users
+            {/* Results count badge */}
+            <div className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-neutral-600 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800/80 rounded-xl">
+              {isPending && (
+                <svg className="w-3.5 h-3.5 animate-spin text-[#006655] dark:text-[#06f9d0]" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+              )}
+              <span>
+                {usersResult.total === 0
+                  ? '0 Users'
+                  : `${startItem}-${endItem} of ${usersResult.total} Users`}
+              </span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Users Table */}
-      <div className="bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 rounded-2xl overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
+      {/* Users Table Card */}
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 rounded-2xl overflow-hidden shadow-xs relative">
+        {/* Loading Progress Bar */}
+        {isPending && (
+          <div className="absolute top-0 left-0 right-0 h-1 bg-neutral-200 dark:bg-neutral-800 overflow-hidden z-10">
+            <div className="h-full bg-[#006655] dark:bg-[#06f9d0] animate-pulse w-full" />
+          </div>
+        )}
+
+        <div className={`overflow-x-auto transition-opacity duration-200 ${isPending ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
           <table className="w-full text-left text-sm">
             <thead className="bg-neutral-50 dark:bg-neutral-800/60 border-b border-neutral-200/80 dark:border-neutral-800 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
               <tr>
                 <th scope="col" className="py-3.5 pl-5 pr-3">User</th>
                 <th scope="col" className="px-3 py-3.5">Email</th>
-                <th scope="col" className="px-3 py-3.5">Assigned Role</th>
-                <th scope="col" className="px-3 py-3.5">Registered</th>
-                <th scope="col" className="py-3.5 pl-3 pr-5 text-right">Change Role</th>
+                <th scope="col" className="px-3 py-3.5">Joined Date</th>
+                <th scope="col" className="px-3 py-3.5">Current Role</th>
+                <th scope="col" className="py-3.5 pl-3 pr-5 text-right">Assign Role</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200/70 dark:divide-neutral-800">
-              {filteredUsers.length === 0 ? (
+              {users.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-12 text-center text-neutral-500 dark:text-neutral-400">
                     <div className="max-w-xs mx-auto">
                       <p className="font-semibold text-neutral-800 dark:text-neutral-200">No users found</p>
-                      <p className="text-xs mt-1">Try adjusting your search criteria or register a new user.</p>
+                      <p className="text-xs mt-1">Try adjusting your search query or role filter.</p>
                     </div>
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((u) => {
-                  const isSelf = u.user_id === currentUserId || u.user_id === authUser?.id;
-                  const isUpdating = updatingUserId === u.id;
-                  const initials = (u.full_name || u.email || 'U')
+                users.map((targetUser) => {
+                  const isUpdating = updatingUserId === targetUser.id;
+                  const isSelf =
+                    targetUser.user_id === currentUserId || targetUser.user_id === authUser?.id;
+                  const initials = (targetUser.full_name || targetUser.email)
                     .split(' ')
                     .map((n) => n[0])
                     .join('')
-                    .substring(0, 2)
-                    .toUpperCase();
+                    .toUpperCase()
+                    .slice(0, 2);
 
                   return (
                     <tr
-                      key={u.id}
+                      key={targetUser.id}
                       className="hover:bg-neutral-50/70 dark:hover:bg-neutral-800/40 transition-colors"
                     >
-                      {/* User Avatar & Name */}
-                      <td className="py-4 pl-5 pr-3 max-w-xs">
+                      {/* Avatar & Full Name */}
+                      <td className="py-4 pl-5 pr-3 whitespace-nowrap">
                         <div className="flex items-center gap-3">
-                          <div className="relative w-10 h-10 rounded-full shrink-0 overflow-hidden bg-[#006655]/10 dark:bg-white/10 flex items-center justify-center border border-neutral-200 dark:border-neutral-700">
-                            {u.avatar_url ? (
+                          <div className="relative w-10 h-10 rounded-full overflow-hidden shrink-0 bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center font-bold text-xs text-neutral-600 dark:text-neutral-300">
+                            {targetUser.avatar_url ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img
-                                src={u.avatar_url}
-                                alt={u.full_name || u.email}
+                                src={targetUser.avatar_url}
+                                alt={targetUser.full_name || 'User avatar'}
                                 className="w-full h-full object-cover"
-                                referrerPolicy="no-referrer"
                               />
                             ) : (
-                              <span className="text-xs font-semibold text-[#006655] dark:text-[#06f9d0]">
-                                {initials}
-                              </span>
+                              <span>{initials}</span>
                             )}
                           </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-neutral-900 dark:text-white truncate block text-sm">
-                                {u.full_name || 'Anonymous User'}
-                              </span>
+                          <div>
+                            <div className="font-semibold text-neutral-900 dark:text-white text-sm flex items-center gap-1.5">
+                              <span>{targetUser.full_name || 'Unnamed User'}</span>
                               {isSelf && (
-                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#006655]/10 text-[#006655] dark:bg-[#06f9d0]/15 dark:text-[#06f9d0]">
+                                <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300">
                                   You
                                 </span>
                               )}
                             </div>
-                            <span className="text-xs text-neutral-400 font-mono block truncate">
-                              ID: {u.user_id.substring(0, 8)}...
-                            </span>
+                            <div className="text-xs text-neutral-400 font-mono mt-0.5">
+                              ID: {targetUser.user_id.slice(0, 8)}...
+                            </div>
                           </div>
                         </div>
                       </td>
 
                       {/* Email */}
-                      <td className="px-3 py-4 text-xs font-medium text-neutral-700 dark:text-neutral-300">
-                        {u.email}
-                      </td>
-
-                      {/* Role Badge */}
-                      <td className="px-3 py-4 whitespace-nowrap">
-                        {u.role === 'admin' ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/60">
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                            </svg>
-                            Administrator
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border border-neutral-200 dark:border-neutral-700">
-                            Standard User
-                          </span>
-                        )}
+                      <td className="px-3 py-4 whitespace-nowrap text-neutral-600 dark:text-neutral-300 font-mono text-xs">
+                        {targetUser.email}
                       </td>
 
                       {/* Registered Date */}
                       <td className="px-3 py-4 whitespace-nowrap text-xs text-neutral-500 dark:text-neutral-400">
-                        {formatDate(u.created_at)}
+                        {formatDate(targetUser.created_at)}
                       </td>
 
-                      {/* Role Dropdown / Action */}
+                      {/* Current Role Badge */}
+                      <td className="px-3 py-4 whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                            targetUser.role === 'admin'
+                              ? 'bg-purple-100 dark:bg-purple-950/70 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60'
+                              : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700'
+                          }`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              targetUser.role === 'admin' ? 'bg-purple-500' : 'bg-neutral-400'
+                            }`}
+                          />
+                          <span className="capitalize">{targetUser.role}</span>
+                        </span>
+                      </td>
+
+                      {/* Action: Role Switcher Dropdown */}
                       <td className="py-4 pl-3 pr-5 whitespace-nowrap text-right text-xs">
                         <div className="inline-flex items-center gap-2">
+                          {isUpdating && (
+                            <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin shrink-0" />
+                          )}
                           <select
-                            disabled={isUpdating || (isSelf && u.role === 'admin')}
-                            value={u.role}
-                            onChange={(e) => handleRoleChange(u, e.target.value as UserRole)}
-                            className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
-                              u.role === 'admin'
-                                ? 'bg-purple-50 dark:bg-purple-950/50 border-purple-300 dark:border-purple-700 text-purple-800 dark:text-purple-200 focus:ring-2 focus:ring-purple-500'
-                                : 'bg-neutral-50 dark:bg-neutral-800 border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 focus:ring-2 focus:ring-[#006655]'
-                            } ${isUpdating ? 'opacity-50 cursor-wait' : ''} ${
-                              isSelf && u.role === 'admin' ? 'cursor-not-allowed opacity-80' : ''
+                            value={targetUser.role}
+                            disabled={isUpdating || (isSelf && targetUser.role === 'admin')}
+                            onChange={(e) =>
+                              handleRoleChange(targetUser, e.target.value as UserRole)
+                            }
+                            className={`px-3 py-1.5 text-xs font-medium rounded-xl border transition-all cursor-pointer ${
+                              isSelf && targetUser.role === 'admin'
+                                ? 'bg-neutral-100 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-400 cursor-not-allowed'
+                                : 'bg-neutral-50 dark:bg-neutral-800/80 border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 hover:border-purple-500 dark:hover:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500'
                             }`}
                             title={
-                              isSelf && u.role === 'admin'
-                                ? 'Self-demotion is locked to prevent accidental lockout'
-                                : 'Select role'
+                              isSelf && targetUser.role === 'admin'
+                                ? 'Self-demotion disabled for security'
+                                : undefined
                             }
                           >
-                            <option value="user">User</option>
-                            <option value="admin">Admin</option>
+                            <option value="user">User (Standard)</option>
+                            <option value="admin">Admin (Full Access)</option>
                           </select>
                         </div>
                       </td>
@@ -354,6 +464,21 @@ export function UsersTable({ initialUsers, currentUserId, onStatsRefresh }: User
             </tbody>
           </table>
         </div>
+
+        {/* Server-Side Pagination Bar */}
+        {usersResult.totalPages > 1 && (
+          <div className="px-4 py-2 border-t border-neutral-200/80 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
+            <Pagination
+              currentPage={usersResult.page}
+              totalPages={usersResult.totalPages}
+              totalItems={usersResult.total}
+              pageSize={usersResult.pageSize}
+              createPageUrl={(pageNum) => buildUrl({ page: pageNum })}
+              onPageChange={(pageNum) => applyFilters({ page: pageNum })}
+              className="py-3 border-t-0"
+            />
+          </div>
+        )}
       </div>
     </div>
   );

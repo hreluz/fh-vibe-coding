@@ -1,31 +1,54 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Property } from '@/types/property';
-import { UserRoleRow } from '@/types/database';
-import { AdminDashboardStats } from '@/lib/services/roles';
+import React, { useState, useTransition } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { PaginatedUsersResult, AdminDashboardStats } from '@/lib/services/roles';
+import { PaginatedPropertiesResult } from '@/lib/services/properties';
 import { AdminStatsCards } from './AdminStatsCards';
-import { PropertiesTable } from './PropertiesTable';
-import { UsersTable } from './UsersTable';
+import { PropertiesTable, AdminPropertiesFilters } from './PropertiesTable';
+import { UsersTable, AdminUsersFilters } from './UsersTable';
 
 interface AdminDashboardClientProps {
-  initialProperties: Property[];
-  initialUsers: UserRoleRow[];
+  propertiesResult: PaginatedPropertiesResult;
+  usersResult: PaginatedUsersResult;
   initialStats: AdminDashboardStats;
   currentUserId: string | null;
+  initialTab?: TabType;
+  initialPropertyFilters: AdminPropertiesFilters;
+  initialUserFilters: AdminUsersFilters;
 }
 
-type TabType = 'properties' | 'users';
+export type TabType = 'properties' | 'users';
 
 export function AdminDashboardClient({
-  initialProperties,
-  initialUsers,
+  propertiesResult,
+  usersResult,
   initialStats,
   currentUserId,
+  initialTab = 'properties',
+  initialPropertyFilters,
+  initialUserFilters,
 }: AdminDashboardClientProps) {
-  const [activeTab, setActiveTab] = useState<TabType>('properties');
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [, startTransition] = useTransition();
+
+  const activeTab: TabType = initialTab;
   const [stats, setStats] = useState<AdminDashboardStats>(initialStats);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
+
+  const handleTabChange = (tab: TabType) => {
+    const params = new URLSearchParams();
+    params.set('tab', tab);
+    const currentPageSize = searchParams.get('pageSize');
+    if (currentPageSize && currentPageSize !== '10') {
+      params.set('pageSize', currentPageSize);
+    }
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
+  };
 
   const refreshStats = async () => {
     try {
@@ -59,7 +82,7 @@ export function AdminDashboardClient({
         <div className="inline-flex p-1 bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl self-start sm:self-auto shadow-xs">
           <button
             type="button"
-            onClick={() => setActiveTab('properties')}
+            onClick={() => handleTabChange('properties')}
             className={`inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all cursor-pointer ${
               activeTab === 'properties'
                 ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-xs'
@@ -77,7 +100,7 @@ export function AdminDashboardClient({
 
           <button
             type="button"
-            onClick={() => setActiveTab('users')}
+            onClick={() => handleTabChange('users')}
             className={`inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all cursor-pointer ${
               activeTab === 'users'
                 ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-xs'
@@ -110,7 +133,8 @@ export function AdminDashboardClient({
             </span>
           </div>
           <PropertiesTable
-            initialProperties={initialProperties}
+            propertiesResult={propertiesResult}
+            filters={initialPropertyFilters}
             onStatsRefresh={refreshStats}
           />
         </section>
@@ -125,7 +149,8 @@ export function AdminDashboardClient({
             </span>
           </div>
           <UsersTable
-            initialUsers={initialUsers}
+            usersResult={usersResult}
+            filters={initialUserFilters}
             currentUserId={currentUserId}
             onStatsRefresh={refreshStats}
           />
